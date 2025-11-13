@@ -1,0 +1,65 @@
+HƯỚNG DẪN SỬA LỖI STREAMLIT CLOUD
+=====================================
+
+LỖI: Package không tương thích với Python 3.13
+
+GIẢI PHÁP:
+----------
+
+Bước 1: Cập nhật file trong GitHub repository
+----------------------------------------------
+Upload 3 file sau vào root directory của repository:
+
+1. requirements.txt (BẮT BUỘC)
+   - Thay thế file cũ
+   - Chứa các package version tương thích
+
+2. .python-version (NÊN CÓ)
+   - File mới, chỉ định Python 3.11
+   - Giúp Streamlit Cloud dùng đúng version
+
+3. runtime.txt (TÙY CHỌN)
+   - File backup nếu .python-version không hoạt động
+
+
+Bước 2: Push changes lên GitHub
+---------------------------------
+git add requirements.txt .python-version runtime.txt
+git commit -m "Fix: Update dependencies for Python 3.11 compatibility"
+git push origin main
+
+
+Bước 3: Reboot app trên Streamlit Cloud
+----------------------------------------
+1. Vào https://share.streamlit.io/
+2. Tìm app của bạn
+3. Click vào menu (⋮)
+4. Chọn "Reboot app"
+
+
+CÁC VERSION PACKAGE ĐÃ TEST:
+-----------------------------
+✓ streamlit==1.39.0     (stable, latest)
+✓ pandas==2.2.3         (compatible với Python 3.11-3.13)
+✓ plotly==5.24.1        (stable)
+✓ openpyxl==3.1.5       (stable)
+✓ scipy==1.14.1         (compatible)
+✓ numpy==2.1.3          (latest stable)
+✓ Pillow==10.4.0        (compatible với Python 3.11-3.13)
+
+
+LƯU Ý:
+-------
+- Python 3.11 ổn định hơn Python 3.13 với các package hiện tại
+- Nếu vẫn lỗi, thử xóa .python-version và chỉ giữ requirements.txt mới
+- Kiểm tra logs sau khi reboot để đảm bảo không còn lỗi
+
+
+KIỂM TRA THÀNH CÔNG:
+---------------------
+Sau khi deploy, bạn sẽ thấy:
+✓ "Spinning up manager process..."
+✓ "Starting up repository..."
+✓ "App is live!"
+
+Không còn thấy lỗi "installer returned a non-zero exit code"
