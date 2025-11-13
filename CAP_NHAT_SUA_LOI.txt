@@ -1,0 +1,66 @@
+CẬP NHẬT: SỬA LỖI REPORTLAB
+============================
+
+TÌNH TRẠNG:
+-----------
+✅ Dependencies đã cài đặt thành công
+❌ App thiếu package reportlab
+
+LỖI MỚI:
+--------
+ModuleNotFoundError: No module named 'reportlab'
+
+Nguyên nhân: File export_pdf.py trong app đang dùng reportlab
+nhưng package này không có trong requirements.txt cũ
+
+
+GIẢI PHÁP:
+----------
+
+Thay thế file requirements.txt bằng version MỚI đã bao gồm reportlab!
+
+
+REQUIREMENTS.TXT MỚI (ĐẦY ĐỦ):
+-------------------------------
+streamlit==1.39.0
+pandas==2.2.3
+plotly==5.24.1
+openpyxl==3.1.5
+scipy==1.14.1
+numpy==2.1.3
+Pillow==10.4.0
+reportlab==4.2.5    ← ĐÃ THÊM
+
+
+CÁC BƯỚC THỰC HIỆN:
+-------------------
+
+1. Download file requirements.txt MỚI (đã tạo lại)
+
+2. Upload lên GitHub repository (thay thế file cũ)
+
+3. Trên Streamlit Cloud:
+   - Click menu (⋮) ở app
+   - Chọn "Reboot app"
+   
+4. Đợi app deploy lại (khoảng 1-2 phút)
+
+
+KIỂM TRA SAU KHI DEPLOY:
+-------------------------
+✓ Không còn lỗi ModuleNotFoundError
+✓ App hiển thị giao diện chính
+✓ Các chức năng export PDF hoạt động bình thường
+
+
+LƯU Ý:
+-------
+- Nếu app của bạn còn import packages khác, 
+  hãy kiểm tra và thêm vào requirements.txt
+  
+- Các packages thường dùng với Lean Six Sigma apps:
+  • matplotlib (nếu vẽ biểu đồ)
+  • seaborn (nếu vẽ biểu đồ thống kê)
+  • scikit-learn (nếu dùng ML)
+
+Bạn có cần thêm package nào không?
