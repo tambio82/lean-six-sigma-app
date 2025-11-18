@@ -1,0 +1,108 @@
+HƯỚNG DẪN CẤU HÌNH SUPABASE DATABASE
+=====================================
+
+## ✅ CÁC FILE ĐÃ TẠO
+
+1. database.py (MỚI) - Phiên bản PostgreSQL
+2. requirements.txt (ĐÃ CẬP NHẬT) - Thêm SQLAlchemy, psycopg2-binary
+
+## 📤 BƯỚC 1: UPLOAD LÊN GITHUB
+
+1. Vào GitHub repo: https://github.com/tambio82/lean-six-sigma-app
+
+2. Thay thế file **database.py**:
+   - Click vào file database.py
+   - Click nút Edit (biểu tượng bút chì)
+   - Xóa toàn bộ nội dung cũ
+   - Copy nội dung từ file database.py MỚI (đã tạo)
+   - Commit changes
+
+3. Thay thế file **requirements.txt**:
+   - Click vào file requirements.txt
+   - Click nút Edit
+   - Xóa toàn bộ nội dung cũ
+   - Copy nội dung từ file requirements.txt MỚI:
+   
+   ```
+   streamlit==1.39.0
+   pandas==2.2.3
+   plotly==5.24.1
+   Pillow==11.0.0
+   reportlab==4.2.5
+   sqlalchemy==2.0.36
+   psycopg2-binary==2.9.10
+   ```
+   
+   - Commit changes
+
+## 🔐 BƯỚC 2: CẤU HÌNH STREAMLIT CLOUD SECRETS
+
+1. Vào Streamlit Cloud: https://share.streamlit.io
+
+2. Chọn app của bạn: **lean-six-sigma-app**
+
+3. Click vào **Settings** (biểu tượng bánh răng) → **Secrets**
+
+4. Thêm nội dung sau (QUAN TRỌNG: Thay YOUR_PASSWORD bằng password thật):
+
+```toml
+[connections.postgresql]
+url = "postgresql://postgres:YOUR_PASSWORD@db.whinbmggehnvgigciovs.supabase.co:5432/postgres"
+```
+
+   ⚠️ **LƯU Ý:**
+   - Thay `YOUR_PASSWORD` bằng password bạn đã đặt khi tạo Supabase project
+   - KHÔNG để `[YOUR_PASSWORD]` - phải là password thật
+   - Ví dụ: nếu password là `abc123xyz` thì:
+     `postgresql://postgres:abc123xyz@db.whinbmggehnvgigciovs.supabase.co:5432/postgres`
+
+5. Click **Save**
+
+## 🚀 BƯỚC 3: DEPLOY VÀ KIỂM TRA
+
+1. Sau khi Save secrets, Streamlit Cloud sẽ tự động redeploy
+
+2. Đợi 2-3 phút để app khởi động
+
+3. Kiểm tra:
+   - ✅ App khởi động không lỗi
+   - ✅ Có thể thêm dự án mới
+   - ✅ Restart app → Dữ liệu VẪN CÒN (không bị mất)
+
+## 🔍 NẾU GẶP LỖI
+
+### Lỗi: "Không thể kết nối database"
+→ Kiểm tra lại password trong secrets
+→ Đảm bảo đã Save secrets trên Streamlit Cloud
+
+### Lỗi: "Module 'psycopg2' not found"
+→ Kiểm tra requirements.txt đã cập nhật chưa
+→ Redeploy app
+
+### Lỗi kết nối Supabase
+→ Vào Supabase dashboard
+→ Settings → Database → Kiểm tra connection string
+→ Đảm bảo database đang chạy
+
+## 📊 LẤY PASSWORD TỪ SUPABASE
+
+Nếu quên password:
+
+1. Vào: https://supabase.com/dashboard/project/vzknhystlitunnllxzky
+2. Settings → Database
+3. Tìm "Connection string" → URI
+4. Copy connection string (đã có password trong đó)
+5. Hoặc Reset password ở tab "Database Settings"
+
+## ✅ SAU KHI XONG
+
+- Dữ liệu sẽ được lưu vĩnh viễn trên Supabase
+- App restart → Dữ liệu VẪN CÒN
+- Có thể xem dữ liệu trực tiếp trên Supabase Dashboard
+
+## 📞 HỖ TRỢ
+
+Nếu gặp vấn đề, gửi lại:
+1. Screenshot màn hình lỗi
+2. Logs từ Streamlit Cloud
+3. Xác nhận đã Save secrets chưa
