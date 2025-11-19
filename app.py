@@ -53,11 +53,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Khởi tạo database
-@st.cache_resource
+
+# Khởi tạo database - Remove cache to ensure fresh connection with new secrets
 def init_db():
     return ProjectDatabase()
 
 db = init_db()
+
 
 # Danh mục dự án Lean
 LEAN_CATEGORIES = [

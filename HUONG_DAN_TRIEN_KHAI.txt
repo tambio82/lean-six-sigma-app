@@ -1,0 +1,250 @@
+HƯỚNG DẪN TRIỂN KHAI 4 TÍNH NĂNG MỚI
+====================================
+
+## 📦 CÁC FILE ĐÃ TẠO
+
+### 1. Database Schema (database.py)
+✅ **Đã hoàn thành** - File database.py mới với:
+- Thêm field `methodology` vào bảng Projects (DMAIC/PDCA/PDSA)
+- 5 bảng mới cho DMAIC tracking:
+  * dmaic_define (SIPOC, Project Charter, VOC)
+  * dmaic_measure (Data Collection, Baseline Metrics, Process Mapping)
+  * dmaic_analyze (Fishbone, 5 Whys, Pareto, Statistics)
+  * dmaic_improve (Solutions, Pilot Tests, Before/After)
+  * dmaic_control (Control Plans, SOPs, Monitoring)
+
+- Bảng methodology_phases (cho PDCA/PDSA)
+- Bảng documents:
+  * project_documents (lưu trữ files)
+  * document_versions (version control)
+
+- Bảng collaboration:
+  * project_comments (comments & mentions)
+  * activity_log (audit trail)
+  * notifications (email alerts)
+  * meeting_minutes (meeting notes)
+
+### 2. DMAIC Tools Module (dmaic_tools.py)
+✅ **Đã hoàn thành** - UI hoàn chỉnh cho 5 phases:
+
+**DEFINE Phase:**
+- SIPOC Diagram builder
+- Project Charter generator
+- Voice of Customer (VOC) data collection
+
+**MEASURE Phase:**
+- Data Collection Plan
+- Baseline Metrics tracking với charts
+- Process Mapping description
+
+**ANALYZE Phase:**
+- Fishbone Diagram (6M categories)
+- 5 Whys Analysis
+- Pareto Chart với visualization
+- Statistical Analysis (mean, median, std dev)
+
+**IMPROVE Phase:**
+- Solution Brainstorming board
+- Pilot Test tracking
+- Before/After Comparison với charts
+
+**CONTROL Phase:**
+- Control Plan templates
+- SOP document management
+- Sustainability planning
+
+## 🚀 CÁC BƯỚC TRIỂN KHAI
+
+### BƯỚC 1: CẬP NHẬT DATABASE
+
+1. **Backup database hiện tại** (quan trọng!)
+   - Vào Supabase Dashboard
+   - Database → Backups → Create backup
+
+2. **Upload file database.py mới lên GitHub:**
+   ```
+   - Vào: https://github.com/tambio82/lean-six-sigma-app
+   - Click file database.py
+   - Edit → Xóa toàn bộ → Paste nội dung mới
+   - Commit changes
+   ```
+
+3. **Deploy và kiểm tra:**
+   - Streamlit Cloud sẽ tự động redeploy
+   - Đợi 2-3 phút
+   - Các bảng mới sẽ tự động được tạo trong Supabase
+
+### BƯỚC 2: THÊM DMAIC TOOLS MODULE
+
+1. **Tạo file mới dmaic_tools.py trên GitHub:**
+   ```
+   - Vào repo: https://github.com/tambio82/lean-six-sigma-app
+   - Click "Add file" → "Create new file"
+   - Tên file: dmaic_tools.py
+   - Paste nội dung từ file dmaic_tools.py
+   - Commit changes
+   ```
+
+### BƯỚC 3: CẬP NHẬT APP.PY
+
+**Thêm vào đầu file app.py:**
+```python
+from dmaic_tools import DMAICTools
+```
+
+**Trong phần quản lý dự án, thêm tab DMAIC:**
+```python
+# Trong function hiển thị chi tiết dự án
+project_tabs = st.tabs([
+    "📊 Thông tin chung",
+    "👥 Team & Stakeholders", 
+    "📅 Kế hoạch",
+    "✍️ Ký tên",
+    "🔄 DMAIC Tracking",  # MỚI
+    "📄 Documents",
+    "💬 Collaboration"
+])
+
+with project_tabs[4]:  # DMAIC tab
+    if project_info['methodology'] == 'DMAIC':
+        dmaic_tools = DMAICTools(db)
+        dmaic_tools.render_dmaic_tracker(project_id, project_info)
+    else:
+        st.info("Dự án này không sử dụng phương pháp DMAIC")
+```
+
+### BƯỚC 4: THÊM METHODOLOGY SELECTOR
+
+**Trong form tạo dự án mới, thêm:**
+```python
+methodology = st.selectbox(
+    "Phương pháp cải tiến",
+    ["DMAIC", "PDCA", "PDSA"],
+    help="Chọn phương pháp Lean Six Sigma sử dụng cho dự án"
+)
+
+# Khi save project:
+project_data = {
+    ...
+    'methodology': methodology,
+    ...
+}
+```
+
+## 📝 TÍNH NĂNG ĐÃ HOÀN THÀNH
+
+### ✅ Tính năng 1: DMAIC Phase Tracking
+- **DEFINE:** SIPOC, Project Charter, VOC ✅
+- **MEASURE:** Data Collection, Baseline Metrics, Process Map ✅
+- **ANALYZE:** Fishbone, 5 Whys, Pareto, Statistics ✅
+- **IMPROVE:** Solutions, Pilot Tests, Comparisons ✅
+- **CONTROL:** Control Plans, SOPs, Sustainability ✅
+
+### 🔄 Tính năng 2: PDCA/PDSA Support
+**Status:** Database schema sẵn sàng
+**Next steps:**
+- Sử dụng bảng `methodology_phases` 
+- Tạo UI tương tự DMAIC nhưng cho 4 phases của PDCA
+- PDCA: Plan → Do → Check → Act
+- PDSA: Plan → Do → Study → Act
+
+### 🔄 Tính năng 3: Templates & Documents
+**Status:** Database schema sẵn sàng
+**Next steps:**
+- UI để upload documents
+- Template generators (A3, PDCA, 5S, Risk Matrix, FMEA)
+- Version control interface
+
+### 🔄 Tính năng 4: Collaboration
+**Status:** Database schema sẵn sàng
+**Next steps:**
+- Comments interface với @mentions
+- Activity log display
+- Meeting minutes form
+- Email notification setup
+
+## 🎯 ROADMAP TIẾP THEO
+
+### Phase 1: DMAIC Launch (Tuần này)
+1. Deploy database.py mới
+2. Deploy dmaic_tools.py
+3. Update app.py để integrate
+4. Test với 1-2 dự án mẫu
+
+### Phase 2: PDCA/PDSA (Tuần tới)
+1. Tạo pdca_pdsa_tools.py
+2. Update UI
+3. Test
+
+### Phase 3: Documents (2 tuần nữa)
+1. Tạo document_manager.py
+2. Implement upload/download
+3. Template generators
+
+### Phase 4: Collaboration (3 tuần nữa)
+1. Tạo collaboration.py
+2. Comments system
+3. Email notifications
+4. Meeting minutes
+
+## 💡 LƯU Ý QUAN TRỌNG
+
+### Database Migration
+- ✅ Database schema tương thích ngược (backward compatible)
+- ✅ Dự án cũ sẽ tự động có methodology = 'DMAIC'
+- ✅ Không cần migrate dữ liệu cũ
+
+### Performance
+- Các bảng mới có index tự động
+- JSON columns để lưu data linh hoạt
+- Cascade delete để cleanup tự động
+
+### Security
+- Tất cả foreign keys có ondelete='CASCADE'
+- No raw SQL injection risks
+- Validated inputs
+
+## 🧪 TESTING CHECKLIST
+
+### Test DMAIC Tools
+- [ ] Tạo dự án mới với methodology = DMAIC
+- [ ] Define: Nhập SIPOC, Charter, VOC
+- [ ] Measure: Thêm baseline metrics, xem charts
+- [ ] Analyze: Tạo Fishbone, 5 Whys, Pareto
+- [ ] Improve: Brainstorm solutions, compare before/after
+- [ ] Control: Tạo control plan, SOPs
+
+### Test Data Persistence
+- [ ] Nhập data vào DMAIC tools
+- [ ] Refresh page → Data vẫn còn
+- [ ] Restart app → Data vẫn còn
+- [ ] Check Supabase → Tables có data
+
+### Test Integration
+- [ ] Navigate giữa các tabs
+- [ ] Quay lại dashboard
+- [ ] Edit project info
+- [ ] DMAIC data không bị mất
+
+## 📞 HỖ TRỢ
+
+Nếu gặp vấn đề:
+1. Check logs trên Streamlit Cloud
+2. Check tables trong Supabase
+3. Verify connection string trong secrets
+4. Test với dự án mới trước khi migrate dự án cũ
+
+## 🎉 KẾT QUẢ MONG ĐỢI
+
+Sau khi triển khai xong Phase 1, bạn sẽ có:
+- ✅ System quản lý DMAIC phases hoàn chỉnh
+- ✅ Tools chuyên nghiệp cho từng phase
+- ✅ Visualization cho data analysis
+- ✅ Database persistent trên cloud
+- ✅ Foundation sẵn sàng cho 3 features tiếp theo
+
+---
+
+**Version:** 1.0  
+**Last Updated:** November 19, 2025  
+**Author:** Claude AI Assistant
