@@ -8,6 +8,7 @@ import os
 
 # Import các modules
 from database import ProjectDatabase
+from dmaic_tools import DMAICTools  # ← THÊM MỚI
 from gantt_chart import (
     create_gantt_chart, create_dmaic_gantt, 
     get_project_progress, get_phase_summary, 
@@ -53,13 +54,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Khởi tạo database
-
-# Khởi tạo database - Remove cache to ensure fresh connection with new secrets
 def init_db():
     return ProjectDatabase()
 
 db = init_db()
-
 
 # Danh mục dự án Lean
 LEAN_CATEGORIES = [
@@ -85,7 +83,6 @@ DMAIC_PHASES = ["Define", "Measure", "Analyze", "Improve", "Control"]
 # ==================== SIDEBAR ====================
 def render_sidebar():
     with st.sidebar:
-        # FIX: Thay use_container_width=True bằng width=200
         st.image("https://via.placeholder.com/200x80/1f4788/FFFFFF?text=Lean+Six+Sigma", width=200)
         
         st.markdown("---")
@@ -153,9 +150,9 @@ def render_home():
         # Hiển thị top 10 dự án mới nhất
         recent_projects = projects.head(10)
         
-        display_df = recent_projects[['project_code', 'project_name', 'department', 
+        display_df = recent_projects[['project_code', 'project_name', 'methodology', 'department', 
                                        'category', 'status', 'start_date', 'end_date']]
-        display_df.columns = ['Mã dự án', 'Tên dự án', 'Phòng/Ban', 
+        display_df.columns = ['Mã dự án', 'Tên dự án', 'Phương pháp', 'Phòng/Ban', 
                               'Danh mục', 'Trạng thái', 'Ngày bắt đầu', 'Ngày kết thúc']
         
         st.dataframe(display_df, use_container_width=True)
@@ -183,6 +180,14 @@ def render_add_project():
             category = st.selectbox("Danh mục *", [""] + LEAN_CATEGORIES)
         
         with col2:
+            # ← THÊM MỚI: Methodology selector
+            methodology = st.selectbox(
+                "Phương pháp cải tiến *",
+                ["DMAIC", "PDCA", "PDSA"],
+                index=0,
+                help="Chọn phương pháp Lean Six Sigma cho dự án này"
+            )
+            
             status = st.selectbox("Trạng thái *", PROJECT_STATUS)
             start_date = st.date_input("Ngày bắt đầu *")
             end_date = st.date_input("Ngày kết thúc *")
@@ -206,6 +211,7 @@ def render_add_project():
                     'project_name': project_name,
                     'department': department,
                     'category': category,
+                    'methodology': methodology,  # ← THÊM MỚI
                     'status': status,
                     'start_date': start_date.isoformat(),
                     'end_date': end_date.isoformat(),
@@ -248,12 +254,13 @@ def render_manage_projects():
         project = db.get_project(project_id)
         
         if project:
-            # Tabs quản lý
-            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            # ← TABS MỚI: Thêm DMAIC Tracking
+            tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
                 "📄 Thông tin", 
                 "👥 Thành viên", 
                 "🤝 Stakeholders",
                 "📅 Kế hoạch (Gantt)",
+                "🔄 DMAIC Tracking",  # ← TAB MỚI
                 "✍️ Ký tên",
                 "📤 Xuất báo cáo"
             ])
@@ -274,13 +281,53 @@ def render_manage_projects():
             with tab4:
                 render_gantt_plan(project_id)
             
-            # Tab 5: Ký tên
+            # ← TAB 5: DMAIC TRACKING (MỚI)
             with tab5:
+                render_dmaic_tracking(project_id, project)
+            
+            # Tab 6: Ký tên
+            with tab6:
                 render_signoffs(project_id)
             
-            # Tab 6: Xuất báo cáo
-            with tab6:
+            # Tab 7: Xuất báo cáo
+            with tab7:
                 render_export_report(project_id, project)
+
+# ← FUNCTION MỚI: Render DMAIC Tracking
+def render_dmaic_tracking(project_id, project):
+    """Render DMAIC methodology tracking interface"""
+    methodology = project.get('methodology', 'DMAIC')
+    
+    # Hiển thị methodology badge
+    methodology_icons = {
+        'DMAIC': '🔵',
+        'PDCA': '🟢',
+        'PDSA': '🟡'
+    }
+    
+    st.write(f"{methodology_icons.get(methodology, '⚪')} **Phương pháp:** {methodology}")
+    
+    if methodology == 'DMAIC':
+        # Render DMAIC tools
+        dmaic_tools = DMAICTools(db)
+        dmaic_tools.render_dmaic_tracker(project_id, project)
+    
+    elif methodology == 'PDCA':
+        st.info("🔄 **PDCA Tracking**")
+        st.write("**Plan → Do → Check → Act**")
+        st.write("Tính năng PDCA tracking sẽ có sẵn trong phiên bản tiếp theo.")
+        st.write("")
+        st.write("Hiện tại bạn có thể sử dụng tab **Kế hoạch (Gantt)** để theo dõi tiến độ.")
+    
+    elif methodology == 'PDSA':
+        st.info("🔄 **PDSA Tracking**")
+        st.write("**Plan → Do → Study → Act**")
+        st.write("Tính năng PDSA tracking sẽ có sẵn trong phiên bản tiếp theo.")
+        st.write("")
+        st.write("Hiện tại bạn có thể sử dụng tab **Kế hoạch (Gantt)** để theo dõi tiến độ.")
+    
+    else:
+        st.warning("Vui lòng chọn phương pháp cải tiến cho dự án trong tab **Thông tin**")
 
 def render_project_info(project_id, project):
     st.subheader("Thông tin Dự án")
@@ -301,6 +348,12 @@ def render_project_info(project_id, project):
             current_cat = project.get('category', '')
             cat_index = LEAN_CATEGORIES.index(current_cat) if current_cat in LEAN_CATEGORIES else 0
             category = st.selectbox("Danh mục", LEAN_CATEGORIES, index=cat_index)
+            
+            # ← THÊM MỚI: Methodology selector trong edit form
+            methodology_list = ["DMAIC", "PDCA", "PDSA"]
+            current_methodology = project.get('methodology', 'DMAIC')
+            methodology_index = methodology_list.index(current_methodology) if current_methodology in methodology_list else 0
+            methodology = st.selectbox("Phương pháp cải tiến", methodology_list, index=methodology_index)
             
             current_status = project.get('status', 'Lên kế hoạch')
             status_index = PROJECT_STATUS.index(current_status) if current_status in PROJECT_STATUS else 0
@@ -335,6 +388,7 @@ def render_project_info(project_id, project):
                     'project_name': project_name,
                     'department': department,
                     'category': category,
+                    'methodology': methodology,  # ← THÊM MỚI
                     'status': status,
                     'start_date': start_date.isoformat(),
                     'end_date': end_date.isoformat(),
@@ -360,8 +414,18 @@ def render_project_info(project_id, project):
                     st.warning("⚠️ Nhấn lại nút Xóa để xác nhận!")
     
     with col2:
+        # ← HIỂN THỊ METHODOLOGY
+        methodology_icons = {
+            'DMAIC': '🔵',
+            'PDCA': '🟢',
+            'PDSA': '🟡'
+        }
+        methodology = project.get('methodology', 'DMAIC')
+        
         st.info(f"""
         **Mã dự án:** {project.get('project_code', 'N/A')}
+        
+        {methodology_icons.get(methodology, '⚪')} **Phương pháp:** {methodology}
         
         **Ngày tạo:** {pd.to_datetime(project.get('created_at')).strftime('%d/%m/%Y %H:%M') if project.get('created_at') else 'N/A'}
         
@@ -983,6 +1047,7 @@ def render_user_guide():
     
     ### 2. ➕ Thêm dự án mới
     - Nhập đầy đủ thông tin dự án theo form
+    - **Chọn phương pháp cải tiến:** DMAIC, PDCA, hoặc PDSA
     - Các trường có dấu (*) là bắt buộc
     - Chọn danh mục theo 5 nhóm mục đích Lean Six Sigma
     
@@ -990,6 +1055,7 @@ def render_user_guide():
     
     #### 📄 Thông tin dự án
     - Chỉnh sửa thông tin cơ bản
+    - Cập nhật phương pháp cải tiến
     - Cập nhật ngân sách và chi phí thực tế
     - Xóa dự án (cần xác nhận 2 lần)
     
@@ -1006,6 +1072,14 @@ def render_user_guide():
     - Theo dõi tiến độ từng công việc
     - Xem biểu đồ Gantt trực quan
     - Cảnh báo công việc quá hạn
+    
+    #### 🔄 DMAIC Tracking **← MỚI!**
+    - **DEFINE:** SIPOC Diagram, Project Charter, Voice of Customer
+    - **MEASURE:** Data Collection, Baseline Metrics, Process Mapping
+    - **ANALYZE:** Fishbone, 5 Whys, Pareto Chart, Statistical Analysis
+    - **IMPROVE:** Solution Brainstorming, Pilot Testing, Before/After Comparison
+    - **CONTROL:** Control Plans, SOPs, Sustainability Planning
+    - *Lưu ý:* PDCA và PDSA tracking sẽ có trong phiên bản tiếp theo
     
     #### ✍️ Ký tên
     - Thêm thông tin người ký duyệt
@@ -1034,9 +1108,10 @@ def render_user_guide():
     ## 💡 Mẹo sử dụng
     
     1. **Tạo Phòng/Ban trước**: Nên tạo danh sách phòng/ban trước khi thêm dự án
-    2. **DMAIC Phases**: Kế hoạch nên tuân theo 5 giai đoạn: Define, Measure, Analyze, Improve, Control
-    3. **Cập nhật tiến độ**: Thường xuyên cập nhật tiến độ để theo dõi dự án hiệu quả
-    4. **Sao lưu dữ liệu**: Export dữ liệu định kỳ để backup
+    2. **Chọn Methodology:** Chọn đúng phương pháp (DMAIC/PDCA/PDSA) khi tạo dự án
+    3. **DMAIC Tools:** Sử dụng tab DMAIC Tracking để ghi nhận chi tiết từng giai đoạn
+    4. **Cập nhật tiến độ:** Thường xuyên cập nhật tiến độ để theo dõi dự án hiệu quả
+    5. **Sao lưu dữ liệu:** Export dữ liệu định kỳ để backup
     
     ---
     
@@ -1076,3 +1151,15 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+
