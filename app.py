@@ -564,6 +564,27 @@ def render_stakeholders(project_id):
 def render_gantt_plan(project_id):
     st.subheader("📅 Kế hoạch Chi tiết - Gantt Chart")
     
+    # ← LẤY METHODOLOGY TỪ PROJECT
+    project = db.get_project(project_id)
+    methodology = project.get('methodology', 'DMAIC') if project else 'DMAIC'
+    
+    # ← DEFINE PHASES CHO TỪNG METHODOLOGY
+    METHODOLOGY_PHASES = {
+        'DMAIC': ["Define", "Measure", "Analyze", "Improve", "Control"],
+        'PDCA': ["Plan", "Do", "Check", "Act"],
+        'PDSA': ["Plan", "Do", "Study", "Act"]
+    }
+    
+    phases = METHODOLOGY_PHASES.get(methodology, METHODOLOGY_PHASES['DMAIC'])
+    
+    # ← HIỂN THỊ METHODOLOGY HIỆN TẠI
+    methodology_icons = {
+        'DMAIC': '🔵',
+        'PDCA': '🟢',
+        'PDSA': '🟡'
+    }
+    st.info(f"{methodology_icons.get(methodology, '⚪')} **Phương pháp:** {methodology} ({len(phases)} phases)")
+    
     tasks = db.get_tasks(project_id)
     
     # Hiển thị Gantt Chart
@@ -576,7 +597,7 @@ def render_gantt_plan(project_id):
         chart_type = st.radio("Chọn kiểu hiển thị:", 
             ["Gantt Chart cơ bản", "DMAIC Gantt"], horizontal=True)
         
-        if chart_type == "DMAIC Gantt":
+        if chart_type == "DMAIC Gantt" and methodology == 'DMAIC':
             fig = create_dmaic_gantt(tasks)
         else:
             fig = create_gantt_chart(tasks)
@@ -610,7 +631,7 @@ def render_gantt_plan(project_id):
     else:
         st.info("Chưa có kế hoạch chi tiết.")
     
-    # Form thêm task mới
+    # ← FORM THÊM TASK MỚI (DYNAMIC PHASES)
     st.markdown("---")
     st.subheader("➕ Thêm công việc mới")
     
@@ -618,7 +639,12 @@ def render_gantt_plan(project_id):
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            phase = st.selectbox("Phase *", DMAIC_PHASES)
+            # ← DYNAMIC PHASE DROPDOWN
+            phase = st.selectbox(
+                "Phase *", 
+                phases,
+                help=f"Chọn phase theo phương pháp {methodology}"
+            )
             task_name = st.text_input("Tên công việc *")
         
         with col2:
@@ -1151,15 +1177,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
