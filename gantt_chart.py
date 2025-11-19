@@ -1,146 +1,339 @@
-# ========================================
-# GANTT CHART UPDATE - Multi-Methodology Support
-# ========================================
-# 
-# Thay thế function render_gantt_plan() trong app.py
-# ========================================
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime, date
 
-def render_gantt_plan(project_id):
-    st.subheader("📅 Kế hoạch Chi tiết - Gantt Chart")
+def create_gantt_chart(tasks_df):
+    """
+    Tạo Gantt Chart cơ bản từ DataFrame tasks
     
-    # ← LẤY METHODOLOGY TỪ PROJECT
-    project = db.get_project(project_id)
-    methodology = project.get('methodology', 'DMAIC') if project else 'DMAIC'
+    Args:
+        tasks_df: DataFrame với columns: task_name, start_date, end_date, phase, status, progress
     
-    # ← DEFINE PHASES CHO TỪNG METHODOLOGY
-    METHODOLOGY_PHASES = {
-        'DMAIC': ["Define", "Measure", "Analyze", "Improve", "Control"],
-        'PDCA': ["Plan", "Do", "Check", "Act"],
-        'PDSA': ["Plan", "Do", "Study", "Act"]
-    }
+    Returns:
+        plotly.graph_objects.Figure hoặc None nếu lỗi
+    """
+    if tasks_df.empty:
+        return None
     
-    phases = METHODOLOGY_PHASES.get(methodology, METHODOLOGY_PHASES['DMAIC'])
-    
-    # ← HIỂN THỊ METHODOLOGY HIỆN TẠI
-    methodology_icons = {
-        'DMAIC': '🔵',
-        'PDCA': '🟢',
-        'PDSA': '🟡'
-    }
-    st.info(f"{methodology_icons.get(methodology, '⚪')} **Phương pháp:** {methodology} ({len(phases)} phases)")
-    
-    tasks = db.get_tasks(project_id)
-    
-    # Hiển thị Gantt Chart
-    if not tasks.empty:
-        # Tiến độ tổng thể
-        progress = get_project_progress(tasks)
-        st.metric("Tiến độ tổng thể", f"{progress}%")
+    try:
+        # Prepare data
+        df = tasks_df.copy()
         
-        # Chọn loại biểu đồ
-        chart_type = st.radio("Chọn kiểu hiển thị:", 
-            ["Gantt Chart cơ bản", "DMAIC Gantt"], horizontal=True)
+        # Convert dates to datetime
+        df['start_date'] = pd.to_datetime(df['start_date'])
+        df['end_date'] = pd.to_datetime(df['end_date'])
         
-        if chart_type == "DMAIC Gantt" and methodology == 'DMAIC':
-            fig = create_dmaic_gantt(tasks)
-        else:
-            fig = create_gantt_chart(tasks)
+        # Add duration
+        df['duration'] = (df['end_date'] - df['start_date']).dt.days
         
-        if fig:
-            st.plotly_chart(fig, use_container_width=True)
+        # Color mapping by status
+        color_map = {
+            'Chưa bắt đầu': 'lightgray',
+            'Đang thực hiện': 'steelblue',
+            'Hoàn thành': 'green',
+            'Tạm dừng': 'orange'
+        }
         
-        # Tóm tắt theo phase
-        st.subheader("📊 Tóm tắt theo Phase")
-        phase_summary = get_phase_summary(tasks)
-        if not phase_summary.empty:
-            st.dataframe(phase_summary, use_container_width=True)
+        df['color'] = df['status'].map(color_map).fillna('lightgray')
         
-        # Tasks quá hạn
-        overdue = check_overdue_tasks(tasks)
+        # Create figure
+        fig = go.Figure()
+        
+        # Add bars
+        for idx, row in df.iterrows():
+            fig.add_trace(go.Bar(
+                name=row['task_name'],
+                x=[row['duration']],
+                y=[row['task_name']],
+                orientation='h',
+                marker=dict(color=row['color']),
+                base=row['start_date'],
+                text=f"{row['progress']}%",
+                textposition='inside',
+                hovertemplate=(
+                    f"<b>{row['task_name']}</b><br>" +
+                    f"Phase: {row['phase']}<br>" +
+                    f"Start: {row['start_date'].strftime('%Y-%m-%d')}<br>" +
+                    f"End: {row['end_date'].strftime('%Y-%m-%d')}<br>" +
+                    f"Status: {row['status']}<br>" +
+                    f"Progress: {row['progress']}%<br>" +
+                    f"Responsible: {row.get('responsible', 'N/A')}<br>" +
+                    "<extra></extra>"
+                )
+            ))
+        
+        # Update layout
+        fig.update_layout(
+            title='Gantt Chart - Project Timeline',
+            xaxis_title='Timeline',
+            yaxis_title='Tasks',
+            height=max(400, len(df) * 40),
+            showlegend=False,
+            xaxis=dict(type='date'),
+            hovermode='closest'
+        )
+        
+        return fig
+    
+    except Exception as e:
+        print(f"Error creating gantt chart: {e}")
+        return None
+
+
+def create_dmaic_gantt(tasks_df):
+    """
+    Tạo Gantt Chart với group theo DMAIC phases
+    
+    Args:
+        tasks_df: DataFrame với columns: task_name, start_date, end_date, phase, status, progress
+    
+    Returns:
+        plotly.graph_objects.Figure hoặc None nếu lỗi
+    """
+    if tasks_df.empty:
+        return None
+    
+    try:
+        # Prepare data
+        df = tasks_df.copy()
+        
+        # Convert dates
+        df['start_date'] = pd.to_datetime(df['start_date'])
+        df['end_date'] = pd.to_datetime(df['end_date'])
+        
+        # DMAIC phase colors
+        phase_colors = {
+            'Define': '#FF6B6B',
+            'Measure': '#4ECDC4',
+            'Analyze': '#45B7D1',
+            'Improve': '#96CEB4',
+            'Control': '#FFEAA7'
+        }
+        
+        df['color'] = df['phase'].map(phase_colors).fillna('lightgray')
+        
+        # Sort by phase order
+        phase_order = ['Define', 'Measure', 'Analyze', 'Improve', 'Control']
+        df['phase_order'] = df['phase'].apply(
+            lambda x: phase_order.index(x) if x in phase_order else 999
+        )
+        df = df.sort_values(['phase_order', 'start_date'])
+        
+        # Create figure
+        fig = go.Figure()
+        
+        # Add bars grouped by phase
+        for idx, row in df.iterrows():
+            fig.add_trace(go.Bar(
+                name=row['task_name'],
+                x=[row['end_date'] - row['start_date']],
+                y=[f"{row['phase']}: {row['task_name']}"],
+                orientation='h',
+                marker=dict(color=row['color']),
+                base=row['start_date'],
+                text=f"{row['progress']}%",
+                textposition='inside',
+                hovertemplate=(
+                    f"<b>{row['task_name']}</b><br>" +
+                    f"Phase: {row['phase']}<br>" +
+                    f"Start: {row['start_date'].strftime('%Y-%m-%d')}<br>" +
+                    f"End: {row['end_date'].strftime('%Y-%m-%d')}<br>" +
+                    f"Status: {row['status']}<br>" +
+                    f"Progress: {row['progress']}%<br>" +
+                    "<extra></extra>"
+                )
+            ))
+        
+        # Update layout
+        fig.update_layout(
+            title='DMAIC Gantt Chart',
+            xaxis_title='Timeline',
+            yaxis_title='Tasks by Phase',
+            height=max(400, len(df) * 40),
+            showlegend=False,
+            xaxis=dict(type='date'),
+            hovermode='closest'
+        )
+        
+        return fig
+    
+    except Exception as e:
+        print(f"Error creating DMAIC gantt: {e}")
+        return None
+
+
+def get_project_progress(tasks_df):
+    """
+    Tính % tiến độ tổng thể của dự án
+    
+    Args:
+        tasks_df: DataFrame với column 'progress'
+    
+    Returns:
+        int: % progress (0-100)
+    """
+    if tasks_df.empty:
+        return 0
+    
+    try:
+        avg_progress = tasks_df['progress'].mean()
+        return int(round(avg_progress))
+    except:
+        return 0
+
+
+def get_phase_summary(tasks_df):
+    """
+    Tạo bảng tóm tắt theo phase
+    
+    Args:
+        tasks_df: DataFrame với columns: phase, status, progress
+    
+    Returns:
+        DataFrame với summary theo phase
+    """
+    if tasks_df.empty:
+        return pd.DataFrame()
+    
+    try:
+        summary = tasks_df.groupby('phase').agg({
+            'task_name': 'count',
+            'progress': 'mean',
+            'status': lambda x: (x == 'Hoàn thành').sum()
+        }).reset_index()
+        
+        summary.columns = ['Phase', 'Tổng số task', 'Tiến độ TB (%)', 'Số task hoàn thành']
+        summary['Tiến độ TB (%)'] = summary['Tiến độ TB (%)'].round(1)
+        
+        return summary
+    except Exception as e:
+        print(f"Error creating phase summary: {e}")
+        return pd.DataFrame()
+
+
+def check_overdue_tasks(tasks_df):
+    """
+    Kiểm tra các task quá hạn
+    
+    Args:
+        tasks_df: DataFrame với columns: task_name, end_date, status, progress
+    
+    Returns:
+        DataFrame chứa các task quá hạn
+    """
+    if tasks_df.empty:
+        return pd.DataFrame()
+    
+    try:
+        # Convert end_date to datetime
+        df = tasks_df.copy()
+        df['end_date'] = pd.to_datetime(df['end_date'])
+        
+        # Get today
+        today = pd.Timestamp.now()
+        
+        # Filter overdue tasks (past deadline and not completed)
+        overdue = df[
+            (df['end_date'] < today) & 
+            (df['status'] != 'Hoàn thành') &
+            (df['progress'] < 100)
+        ].copy()
+        
         if not overdue.empty:
-            st.warning(f"⚠️ Có {len(overdue)} công việc quá hạn!")
-            st.dataframe(overdue, use_container_width=True)
+            overdue['days_overdue'] = (today - overdue['end_date']).dt.days
+            overdue = overdue[['task_name', 'phase', 'end_date', 'responsible', 
+                               'status', 'progress', 'days_overdue']]
+            overdue.columns = ['Công việc', 'Phase', 'Deadline', 'Người phụ trách',
+                              'Trạng thái', 'Tiến độ (%)', 'Quá hạn (ngày)']
+            
+            return overdue.sort_values('Quá hạn (ngày)', ascending=False)
         
-        # Danh sách tasks
-        st.markdown("---")
-        st.subheader("Danh sách công việc")
-        
-        display_tasks = tasks[['phase', 'task_name', 'start_date', 'end_date', 
-                                'responsible', 'status', 'progress']]
-        display_tasks.columns = ['Phase', 'Công việc', 'Ngày bắt đầu', 'Ngày kết thúc',
-                                  'Người phụ trách', 'Trạng thái', 'Tiến độ (%)']
-        
-        st.dataframe(display_tasks, use_container_width=True)
-        
-    else:
-        st.info("Chưa có kế hoạch chi tiết.")
+        return pd.DataFrame()
     
-    # ← FORM THÊM TASK MỚI (DYNAMIC PHASES)
-    st.markdown("---")
-    st.subheader("➕ Thêm công việc mới")
+    except Exception as e:
+        print(f"Error checking overdue tasks: {e}")
+        return pd.DataFrame()
+
+
+# ==================== ADDITIONAL HELPER FUNCTIONS ====================
+
+def get_critical_path(tasks_df):
+    """
+    Xác định critical path (đường găng) của dự án
+    (Đơn giản hóa: tasks có thời gian dài nhất)
+    """
+    if tasks_df.empty:
+        return pd.DataFrame()
     
-    with st.form(f"add_task_{project_id}"):
-        col1, col2, col3 = st.columns(3)
+    try:
+        df = tasks_df.copy()
+        df['start_date'] = pd.to_datetime(df['start_date'])
+        df['end_date'] = pd.to_datetime(df['end_date'])
+        df['duration'] = (df['end_date'] - df['start_date']).dt.days
         
-        with col1:
-            # ← DYNAMIC PHASE DROPDOWN BASED ON METHODOLOGY
-            phase = st.selectbox(
-                "Phase *", 
-                phases,
-                help=f"Chọn phase theo phương pháp {methodology}"
-            )
-            task_name = st.text_input("Tên công việc *")
+        # Get tasks with longest duration
+        threshold = df['duration'].quantile(0.75)  # Top 25%
+        critical = df[df['duration'] >= threshold].sort_values('duration', ascending=False)
         
-        with col2:
-            start_date = st.date_input("Ngày bắt đầu *")
-            end_date = st.date_input("Ngày kết thúc *")
-        
-        with col3:
-            responsible = st.text_input("Người phụ trách")
-            status = st.selectbox("Trạng thái", 
-                ["Chưa bắt đầu", "Đang thực hiện", "Hoàn thành", "Tạm dừng"])
-            progress = st.slider("Tiến độ (%)", 0, 100, 0)
-        
-        submitted = st.form_submit_button("💾 Thêm công việc", type="primary")
-        
-        if submitted:
-            if not task_name:
-                st.error("⚠️ Vui lòng nhập tên công việc!")
-            else:
-                task_data = {
-                    'project_id': project_id,
-                    'phase': phase,
-                    'task_name': task_name,
-                    'start_date': start_date.isoformat(),
-                    'end_date': end_date.isoformat(),
-                    'responsible': responsible,
-                    'status': status,
-                    'progress': progress
-                }
-                
-                db.add_task(task_data)
-                st.success("✅ Đã thêm công việc!")
-                st.rerun()
+        return critical[['task_name', 'phase', 'start_date', 'end_date', 'duration', 'status']]
+    
+    except:
+        return pd.DataFrame()
 
 
-# ========================================
-# CHANGES SUMMARY
-# ========================================
-"""
-1. Lấy methodology từ project
-2. Define phases cho DMAIC, PDCA, PDSA
-3. Dynamic phase dropdown
-4. Hiển thị methodology info
-5. Conditional DMAIC Gantt (chỉ cho DMAIC)
-"""
+def get_resource_allocation(tasks_df):
+    """
+    Phân tích phân bổ nguồn lực (người phụ trách)
+    """
+    if tasks_df.empty:
+        return pd.DataFrame()
+    
+    try:
+        if 'responsible' not in tasks_df.columns:
+            return pd.DataFrame()
+        
+        allocation = tasks_df.groupby('responsible').agg({
+            'task_name': 'count',
+            'progress': 'mean'
+        }).reset_index()
+        
+        allocation.columns = ['Người phụ trách', 'Số task', 'Tiến độ TB (%)']
+        allocation['Tiến độ TB (%)'] = allocation['Tiến độ TB (%)'].round(1)
+        
+        return allocation.sort_values('Số task', ascending=False)
+    
+    except:
+        return pd.DataFrame()
 
-# ========================================
-# USAGE INSTRUCTIONS
-# ========================================
-"""
-1. Mở file app.py
-2. Tìm function render_gantt_plan()
-3. Thay thế toàn bộ function bằng code trên
-4. Lưu và commit
-5. Test với dự án DMAIC, PDCA, PDSA
-"""
+
+def create_timeline_chart(tasks_df):
+    """
+    Tạo timeline chart đơn giản với Plotly
+    """
+    if tasks_df.empty:
+        return None
+    
+    try:
+        df = tasks_df.copy()
+        df['start_date'] = pd.to_datetime(df['start_date'])
+        df['end_date'] = pd.to_datetime(df['end_date'])
+        
+        fig = px.timeline(
+            df,
+            x_start='start_date',
+            x_end='end_date',
+            y='phase',
+            color='status',
+            hover_data=['task_name', 'responsible', 'progress'],
+            title='Project Timeline by Phase'
+        )
+        
+        fig.update_yaxes(categoryorder='total ascending')
+        fig.update_layout(height=400)
+        
+        return fig
+    
+    except Exception as e:
+        print(f"Error creating timeline chart: {e}")
+        return None
