@@ -98,7 +98,7 @@ DMAIC_PHASES = ["Define", "Measure", "Analyze", "Improve", "Control"]
 # ==================== SIDEBAR ====================
 def render_sidebar():
     with st.sidebar:
-        st.image("https://via.placeholder.com/200x80/1f4788/FFFFFF?text=Lean+Six+Sigma", use_container_width=True)
+        st.image("https://via.placeholder.com/200x80/1f4788/FFFFFF?text=Lean+Six+Sigma", use_column_width=True)
         
         st.markdown("---")
         
