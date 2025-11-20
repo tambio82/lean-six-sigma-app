@@ -8,7 +8,6 @@ import os
 
 # Import các modules
 from database import ProjectDatabase
-from dmaic_tools import DMAICTools  # ← THÊM MỚI
 from gantt_chart import (
     create_gantt_chart, create_dmaic_gantt, 
     get_project_progress, get_phase_summary, 
@@ -21,6 +20,10 @@ from dashboard import (
     create_overview_dashboard, create_metrics_cards,
     create_heatmap, create_funnel_chart
 )
+# Import collaboration modules (Phase 4)
+from notifications import NotificationSystem
+from collaboration import CollaborationManager
+from meetings import MeetingManager
 
 # Cấu hình trang
 st.set_page_config(
@@ -54,10 +57,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Khởi tạo database
+@st.cache_resource
 def init_db():
     return ProjectDatabase()
 
 db = init_db()
+
+# Khởi tạo collaboration managers
+@st.cache_resource
+def init_managers():
+    """Initialize collaboration managers"""
+    notification_system = NotificationSystem(db)
+    collaboration_manager = CollaborationManager(db, notification_system)
+    meeting_manager = MeetingManager(db, collaboration_manager)
+    return notification_system, collaboration_manager, meeting_manager
+
+notification_system, collaboration_manager, meeting_manager = init_managers()
 
 # Danh mục dự án Lean
 LEAN_CATEGORIES = [
@@ -83,7 +98,7 @@ DMAIC_PHASES = ["Define", "Measure", "Analyze", "Improve", "Control"]
 # ==================== SIDEBAR ====================
 def render_sidebar():
     with st.sidebar:
-        st.image("https://via.placeholder.com/200x80/1f4788/FFFFFF?text=Lean+Six+Sigma", width=200)
+        st.image("https://via.placeholder.com/200x80/1f4788/FFFFFF?text=Lean+Six+Sigma", use_container_width=True)
         
         st.markdown("---")
         
@@ -94,6 +109,7 @@ def render_sidebar():
                 "➕ Thêm dự án mới",
                 "📝 Quản lý dự án",
                 "📊 Dashboard & Thống kê",
+                "💬 Collaboration",
                 "🏢 Quản lý Phòng/Ban",
                 "📤 Import/Export",
                 "❓ Hướng dẫn sử dụng"
@@ -150,9 +166,9 @@ def render_home():
         # Hiển thị top 10 dự án mới nhất
         recent_projects = projects.head(10)
         
-        display_df = recent_projects[['project_code', 'project_name', 'methodology', 'department', 
+        display_df = recent_projects[['project_code', 'project_name', 'department', 
                                        'category', 'status', 'start_date', 'end_date']]
-        display_df.columns = ['Mã dự án', 'Tên dự án', 'Phương pháp', 'Phòng/Ban', 
+        display_df.columns = ['Mã dự án', 'Tên dự án', 'Phòng/Ban', 
                               'Danh mục', 'Trạng thái', 'Ngày bắt đầu', 'Ngày kết thúc']
         
         st.dataframe(display_df, use_container_width=True)
@@ -180,14 +196,6 @@ def render_add_project():
             category = st.selectbox("Danh mục *", [""] + LEAN_CATEGORIES)
         
         with col2:
-            # ← THÊM MỚI: Methodology selector
-            methodology = st.selectbox(
-                "Phương pháp cải tiến *",
-                ["DMAIC", "PDCA", "PDSA"],
-                index=0,
-                help="Chọn phương pháp Lean Six Sigma cho dự án này"
-            )
-            
             status = st.selectbox("Trạng thái *", PROJECT_STATUS)
             start_date = st.date_input("Ngày bắt đầu *")
             end_date = st.date_input("Ngày kết thúc *")
@@ -211,7 +219,6 @@ def render_add_project():
                     'project_name': project_name,
                     'department': department,
                     'category': category,
-                    'methodology': methodology,  # ← THÊM MỚI
                     'status': status,
                     'start_date': start_date.isoformat(),
                     'end_date': end_date.isoformat(),
@@ -254,13 +261,12 @@ def render_manage_projects():
         project = db.get_project(project_id)
         
         if project:
-            # ← TABS MỚI: Thêm DMAIC Tracking
-            tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+            # Tabs quản lý
+            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
                 "📄 Thông tin", 
                 "👥 Thành viên", 
                 "🤝 Stakeholders",
                 "📅 Kế hoạch (Gantt)",
-                "🔄 DMAIC Tracking",  # ← TAB MỚI
                 "✍️ Ký tên",
                 "📤 Xuất báo cáo"
             ])
@@ -281,53 +287,13 @@ def render_manage_projects():
             with tab4:
                 render_gantt_plan(project_id)
             
-            # ← TAB 5: DMAIC TRACKING (MỚI)
+            # Tab 5: Ký tên
             with tab5:
-                render_dmaic_tracking(project_id, project)
-            
-            # Tab 6: Ký tên
-            with tab6:
                 render_signoffs(project_id)
             
-            # Tab 7: Xuất báo cáo
-            with tab7:
+            # Tab 6: Xuất báo cáo
+            with tab6:
                 render_export_report(project_id, project)
-
-# ← FUNCTION MỚI: Render DMAIC Tracking
-def render_dmaic_tracking(project_id, project):
-    """Render DMAIC methodology tracking interface"""
-    methodology = project.get('methodology', 'DMAIC')
-    
-    # Hiển thị methodology badge
-    methodology_icons = {
-        'DMAIC': '🔵',
-        'PDCA': '🟢',
-        'PDSA': '🟡'
-    }
-    
-    st.write(f"{methodology_icons.get(methodology, '⚪')} **Phương pháp:** {methodology}")
-    
-    if methodology == 'DMAIC':
-        # Render DMAIC tools
-        dmaic_tools = DMAICTools(db)
-        dmaic_tools.render_dmaic_tracker(project_id, project)
-    
-    elif methodology == 'PDCA':
-        st.info("🔄 **PDCA Tracking**")
-        st.write("**Plan → Do → Check → Act**")
-        st.write("Tính năng PDCA tracking sẽ có sẵn trong phiên bản tiếp theo.")
-        st.write("")
-        st.write("Hiện tại bạn có thể sử dụng tab **Kế hoạch (Gantt)** để theo dõi tiến độ.")
-    
-    elif methodology == 'PDSA':
-        st.info("🔄 **PDSA Tracking**")
-        st.write("**Plan → Do → Study → Act**")
-        st.write("Tính năng PDSA tracking sẽ có sẵn trong phiên bản tiếp theo.")
-        st.write("")
-        st.write("Hiện tại bạn có thể sử dụng tab **Kế hoạch (Gantt)** để theo dõi tiến độ.")
-    
-    else:
-        st.warning("Vui lòng chọn phương pháp cải tiến cho dự án trong tab **Thông tin**")
 
 def render_project_info(project_id, project):
     st.subheader("Thông tin Dự án")
@@ -348,12 +314,6 @@ def render_project_info(project_id, project):
             current_cat = project.get('category', '')
             cat_index = LEAN_CATEGORIES.index(current_cat) if current_cat in LEAN_CATEGORIES else 0
             category = st.selectbox("Danh mục", LEAN_CATEGORIES, index=cat_index)
-            
-            # ← THÊM MỚI: Methodology selector trong edit form
-            methodology_list = ["DMAIC", "PDCA", "PDSA"]
-            current_methodology = project.get('methodology', 'DMAIC')
-            methodology_index = methodology_list.index(current_methodology) if current_methodology in methodology_list else 0
-            methodology = st.selectbox("Phương pháp cải tiến", methodology_list, index=methodology_index)
             
             current_status = project.get('status', 'Lên kế hoạch')
             status_index = PROJECT_STATUS.index(current_status) if current_status in PROJECT_STATUS else 0
@@ -388,7 +348,6 @@ def render_project_info(project_id, project):
                     'project_name': project_name,
                     'department': department,
                     'category': category,
-                    'methodology': methodology,  # ← THÊM MỚI
                     'status': status,
                     'start_date': start_date.isoformat(),
                     'end_date': end_date.isoformat(),
@@ -414,18 +373,8 @@ def render_project_info(project_id, project):
                     st.warning("⚠️ Nhấn lại nút Xóa để xác nhận!")
     
     with col2:
-        # ← HIỂN THỊ METHODOLOGY
-        methodology_icons = {
-            'DMAIC': '🔵',
-            'PDCA': '🟢',
-            'PDSA': '🟡'
-        }
-        methodology = project.get('methodology', 'DMAIC')
-        
         st.info(f"""
         **Mã dự án:** {project.get('project_code', 'N/A')}
-        
-        {methodology_icons.get(methodology, '⚪')} **Phương pháp:** {methodology}
         
         **Ngày tạo:** {pd.to_datetime(project.get('created_at')).strftime('%d/%m/%Y %H:%M') if project.get('created_at') else 'N/A'}
         
@@ -564,27 +513,6 @@ def render_stakeholders(project_id):
 def render_gantt_plan(project_id):
     st.subheader("📅 Kế hoạch Chi tiết - Gantt Chart")
     
-    # ← LẤY METHODOLOGY TỪ PROJECT
-    project = db.get_project(project_id)
-    methodology = project.get('methodology', 'DMAIC') if project else 'DMAIC'
-    
-    # ← DEFINE PHASES CHO TỪNG METHODOLOGY
-    METHODOLOGY_PHASES = {
-        'DMAIC': ["Define", "Measure", "Analyze", "Improve", "Control"],
-        'PDCA': ["Plan", "Do", "Check", "Act"],
-        'PDSA': ["Plan", "Do", "Study", "Act"]
-    }
-    
-    phases = METHODOLOGY_PHASES.get(methodology, METHODOLOGY_PHASES['DMAIC'])
-    
-    # ← HIỂN THỊ METHODOLOGY HIỆN TẠI
-    methodology_icons = {
-        'DMAIC': '🔵',
-        'PDCA': '🟢',
-        'PDSA': '🟡'
-    }
-    st.info(f"{methodology_icons.get(methodology, '⚪')} **Phương pháp:** {methodology} ({len(phases)} phases)")
-    
     tasks = db.get_tasks(project_id)
     
     # Hiển thị Gantt Chart
@@ -597,7 +525,7 @@ def render_gantt_plan(project_id):
         chart_type = st.radio("Chọn kiểu hiển thị:", 
             ["Gantt Chart cơ bản", "DMAIC Gantt"], horizontal=True)
         
-        if chart_type == "DMAIC Gantt" and methodology == 'DMAIC':
+        if chart_type == "DMAIC Gantt":
             fig = create_dmaic_gantt(tasks)
         else:
             fig = create_gantt_chart(tasks)
@@ -631,7 +559,7 @@ def render_gantt_plan(project_id):
     else:
         st.info("Chưa có kế hoạch chi tiết.")
     
-    # ← FORM THÊM TASK MỚI (DYNAMIC PHASES)
+    # Form thêm task mới
     st.markdown("---")
     st.subheader("➕ Thêm công việc mới")
     
@@ -639,12 +567,7 @@ def render_gantt_plan(project_id):
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            # ← DYNAMIC PHASE DROPDOWN
-            phase = st.selectbox(
-                "Phase *", 
-                phases,
-                help=f"Chọn phase theo phương pháp {methodology}"
-            )
+            phase = st.selectbox("Phase *", DMAIC_PHASES)
             task_name = st.text_input("Tên công việc *")
         
         with col2:
@@ -1060,6 +983,196 @@ def render_import_export():
                 except Exception as e:
                     st.error(f"❌ Lỗi: {str(e)}")
 
+# ==================== COLLABORATION & COMMUNICATION ====================
+def render_collaboration():
+    st.header("💬 Collaboration & Communication")
+    
+    st.info("📢 **Phase 4 - Collaboration Features**: Giao tiếp và làm việc nhóm hiệu quả!")
+    
+    # Get list of projects for selection
+    projects = db.get_all_projects()
+    
+    if projects.empty:
+        st.warning("Chưa có dự án nào. Vui lòng tạo dự án trước!")
+        return
+    
+    # Project selector
+    project_options = {f"{row['project_code']} - {row['project_name']}": row['id'] 
+                      for _, row in projects.iterrows()}
+    
+    selected_project_display = st.selectbox(
+        "Chọn dự án để xem collaboration",
+        options=list(project_options.keys())
+    )
+    
+    selected_project_id = project_options[selected_project_display]
+    
+    st.markdown("---")
+    
+    # Tabs for different collaboration features
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "💬 Discussion & Comments",
+        "📊 Activity Log",
+        "📅 Meetings",
+        "🔔 Notifications"
+    ])
+    
+    # Tab 1: Comments & Discussion
+    with tab1:
+        st.subheader("💬 Thảo luận & Bình luận")
+        
+        # Get current user info (demo - in production would use auth)
+        with st.expander("👤 Thông tin người dùng", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                current_user_name = st.text_input("Tên của bạn", value="User Demo", key="collab_user_name")
+            with col2:
+                current_user_email = st.text_input("Email của bạn", value="user@example.com", key="collab_user_email")
+        
+        st.markdown("---")
+        
+        # Render comment section
+        collaboration_manager.render_comment_section(
+            project_id=selected_project_id,
+            user_name=current_user_name,
+            user_email=current_user_email
+        )
+    
+    # Tab 2: Activity Log
+    with tab2:
+        st.subheader("📊 Lịch sử Hoạt động")
+        
+        # Activity statistics
+        col1, col2, col3 = st.columns(3)
+        
+        stats = collaboration_manager.get_collaboration_stats(selected_project_id)
+        
+        with col1:
+            st.metric("💬 Tổng bình luận", stats['total_comments'])
+        
+        with col2:
+            st.metric("📝 Tổng hoạt động", stats['total_activities'])
+        
+        with col3:
+            st.metric("🔥 Hoạt động 7 ngày qua", stats['recent_activity_count'])
+        
+        st.markdown("---")
+        
+        # Activity timeline
+        collaboration_manager.render_activity_timeline(selected_project_id, limit=30)
+    
+    # Tab 3: Meetings
+    with tab3:
+        # Get current user
+        current_user = st.session_state.get('collab_user_name', 'User Demo')
+        
+        # Render meetings page
+        meeting_manager.render_meetings_page(selected_project_id, current_user)
+    
+    # Tab 4: Notifications
+    with tab4:
+        st.subheader("🔔 Thông báo")
+        
+        # User email for notifications
+        user_email = st.text_input(
+            "Email để nhận thông báo",
+            value="user@example.com",
+            key="notification_email"
+        )
+        
+        st.markdown("---")
+        
+        # Notification summary
+        summary = notification_system.get_notification_summary(user_email)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("📧 Tổng thông báo", summary['total'])
+        with col2:
+            st.metric("🔴 Chưa đọc", summary['unread'])
+        
+        st.markdown("---")
+        
+        # Show notifications
+        notifications = notification_system.get_unread_notifications(user_email)
+        
+        if not notifications.empty:
+            st.write("**🔔 Thông báo chưa đọc:**")
+            
+            for _, notif in notifications.iterrows():
+                with st.expander(f"{notif['title']} - {pd.to_datetime(notif['created_at']).strftime('%d/%m/%Y %H:%M')}"):
+                    st.write(notif['message'])
+                    st.write(f"**Loại:** {notif['notification_type']}")
+                    
+                    if st.button("✅ Đánh dấu đã đọc", key=f"mark_read_{notif['id']}"):
+                        notification_system.mark_as_read(notif['id'])
+                        st.success("Đã đánh dấu!")
+                        st.rerun()
+        else:
+            st.info("✅ Bạn không có thông báo mới!")
+        
+        st.markdown("---")
+        
+        # Email configuration (for admins)
+        with st.expander("⚙️ Cấu hình Email (Admin)", expanded=False):
+            st.warning("⚠️ Tính năng này chỉ dành cho quản trị viên")
+            
+            with st.form("smtp_config_form"):
+                st.write("**SMTP Configuration**")
+                
+                smtp_server = st.text_input("SMTP Server", value="smtp.gmail.com")
+                smtp_port = st.number_input("SMTP Port", value=587, min_value=1, max_value=65535)
+                smtp_username = st.text_input("Username/Email")
+                smtp_password = st.text_input("Password", type="password")
+                from_email = st.text_input("From Email")
+                
+                submitted = st.form_submit_button("💾 Lưu cấu hình")
+                
+                if submitted:
+                    if all([smtp_server, smtp_port, smtp_username, smtp_password, from_email]):
+                        notification_system.configure_smtp(
+                            server=smtp_server,
+                            port=smtp_port,
+                            username=smtp_username,
+                            password=smtp_password,
+                            from_email=from_email
+                        )
+                        st.success("✅ Đã cấu hình SMTP!")
+                    else:
+                        st.error("Vui lòng điền đầy đủ thông tin!")
+        
+        st.markdown("---")
+        
+        # Test notification
+        with st.expander("🧪 Gửi thông báo test", expanded=False):
+            test_email = st.text_input("Email nhận", key="test_notif_email")
+            test_subject = st.text_input("Tiêu đề", value="Test Notification")
+            test_message = st.text_area("Nội dung", value="Đây là thông báo test từ hệ thống")
+            
+            if st.button("📤 Gửi thông báo test"):
+                if test_email:
+                    body_html = f"""
+                    <html>
+                        <body>
+                            <h2>Test Notification</h2>
+                            <p>{test_message}</p>
+                        </body>
+                    </html>
+                    """
+                    
+                    success = notification_system.send_email(
+                        to_email=test_email,
+                        subject=test_subject,
+                        body_html=body_html
+                    )
+                    
+                    if success:
+                        st.success("✅ Đã gửi email test!")
+                    else:
+                        st.warning("⚠️ SMTP chưa được cấu hình hoặc có lỗi. Check logs.")
+                else:
+                    st.error("Vui lòng nhập email!")
+
 # ==================== HƯỚNG DẪN SỬ DỤNG ====================
 def render_user_guide():
     st.header("❓ Hướng dẫn Sử dụng")
@@ -1073,7 +1186,6 @@ def render_user_guide():
     
     ### 2. ➕ Thêm dự án mới
     - Nhập đầy đủ thông tin dự án theo form
-    - **Chọn phương pháp cải tiến:** DMAIC, PDCA, hoặc PDSA
     - Các trường có dấu (*) là bắt buộc
     - Chọn danh mục theo 5 nhóm mục đích Lean Six Sigma
     
@@ -1081,7 +1193,6 @@ def render_user_guide():
     
     #### 📄 Thông tin dự án
     - Chỉnh sửa thông tin cơ bản
-    - Cập nhật phương pháp cải tiến
     - Cập nhật ngân sách và chi phí thực tế
     - Xóa dự án (cần xác nhận 2 lần)
     
@@ -1098,14 +1209,6 @@ def render_user_guide():
     - Theo dõi tiến độ từng công việc
     - Xem biểu đồ Gantt trực quan
     - Cảnh báo công việc quá hạn
-    
-    #### 🔄 DMAIC Tracking **← MỚI!**
-    - **DEFINE:** SIPOC Diagram, Project Charter, Voice of Customer
-    - **MEASURE:** Data Collection, Baseline Metrics, Process Mapping
-    - **ANALYZE:** Fishbone, 5 Whys, Pareto Chart, Statistical Analysis
-    - **IMPROVE:** Solution Brainstorming, Pilot Testing, Before/After Comparison
-    - **CONTROL:** Control Plans, SOPs, Sustainability Planning
-    - *Lưu ý:* PDCA và PDSA tracking sẽ có trong phiên bản tiếp theo
     
     #### ✍️ Ký tên
     - Thêm thông tin người ký duyệt
@@ -1134,10 +1237,9 @@ def render_user_guide():
     ## 💡 Mẹo sử dụng
     
     1. **Tạo Phòng/Ban trước**: Nên tạo danh sách phòng/ban trước khi thêm dự án
-    2. **Chọn Methodology:** Chọn đúng phương pháp (DMAIC/PDCA/PDSA) khi tạo dự án
-    3. **DMAIC Tools:** Sử dụng tab DMAIC Tracking để ghi nhận chi tiết từng giai đoạn
-    4. **Cập nhật tiến độ:** Thường xuyên cập nhật tiến độ để theo dõi dự án hiệu quả
-    5. **Sao lưu dữ liệu:** Export dữ liệu định kỳ để backup
+    2. **DMAIC Phases**: Kế hoạch nên tuân theo 5 giai đoạn: Define, Measure, Analyze, Improve, Control
+    3. **Cập nhật tiến độ**: Thường xuyên cập nhật tiến độ để theo dõi dự án hiệu quả
+    4. **Sao lưu dữ liệu**: Export dữ liệu định kỳ để backup
     
     ---
     
@@ -1165,6 +1267,9 @@ def main():
     
     elif selected_menu == "📊 Dashboard & Thống kê":
         render_dashboard()
+    
+    elif selected_menu == "💬 Collaboration":
+        render_collaboration()
     
     elif selected_menu == "🏢 Quản lý Phòng/Ban":
         render_departments()
