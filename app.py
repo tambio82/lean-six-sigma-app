@@ -20,10 +20,6 @@ from dashboard import (
     create_overview_dashboard, create_metrics_cards,
     create_heatmap, create_funnel_chart
 )
-# Import collaboration modules (Phase 4)
-from notifications import NotificationSystem
-from collaboration import CollaborationManager
-from meetings import MeetingManager
 
 # Cấu hình trang
 st.set_page_config(
@@ -57,22 +53,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Khởi tạo database
-@st.cache_resource
+
+# Khởi tạo database - Remove cache to ensure fresh connection with new secrets
 def init_db():
     return ProjectDatabase()
 
 db = init_db()
 
-# Khởi tạo collaboration managers
-@st.cache_resource
-def init_managers():
-    """Initialize collaboration managers"""
-    notification_system = NotificationSystem(db)
-    collaboration_manager = CollaborationManager(db, notification_system)
-    meeting_manager = MeetingManager(db, collaboration_manager)
-    return notification_system, collaboration_manager, meeting_manager
-
-notification_system, collaboration_manager, meeting_manager = init_managers()
 
 # Danh mục dự án Lean
 LEAN_CATEGORIES = [
@@ -98,7 +85,8 @@ DMAIC_PHASES = ["Define", "Measure", "Analyze", "Improve", "Control"]
 # ==================== SIDEBAR ====================
 def render_sidebar():
     with st.sidebar:
-        st.image("https://via.placeholder.com/200x80/1f4788/FFFFFF?text=Lean+Six+Sigma", use_column_width=True)
+        # FIX: Thay use_container_width=True bằng width=200
+        st.image("https://via.placeholder.com/200x80/1f4788/FFFFFF?text=Lean+Six+Sigma", width=200)
         
         st.markdown("---")
         
@@ -109,7 +97,6 @@ def render_sidebar():
                 "➕ Thêm dự án mới",
                 "📝 Quản lý dự án",
                 "📊 Dashboard & Thống kê",
-                "💬 Collaboration",
                 "🏢 Quản lý Phòng/Ban",
                 "📤 Import/Export",
                 "❓ Hướng dẫn sử dụng"
@@ -983,196 +970,6 @@ def render_import_export():
                 except Exception as e:
                     st.error(f"❌ Lỗi: {str(e)}")
 
-# ==================== COLLABORATION & COMMUNICATION ====================
-def render_collaboration():
-    st.header("💬 Collaboration & Communication")
-    
-    st.info("📢 **Phase 4 - Collaboration Features**: Giao tiếp và làm việc nhóm hiệu quả!")
-    
-    # Get list of projects for selection
-    projects = db.get_all_projects()
-    
-    if projects.empty:
-        st.warning("Chưa có dự án nào. Vui lòng tạo dự án trước!")
-        return
-    
-    # Project selector
-    project_options = {f"{row['project_code']} - {row['project_name']}": row['id'] 
-                      for _, row in projects.iterrows()}
-    
-    selected_project_display = st.selectbox(
-        "Chọn dự án để xem collaboration",
-        options=list(project_options.keys())
-    )
-    
-    selected_project_id = project_options[selected_project_display]
-    
-    st.markdown("---")
-    
-    # Tabs for different collaboration features
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "💬 Discussion & Comments",
-        "📊 Activity Log",
-        "📅 Meetings",
-        "🔔 Notifications"
-    ])
-    
-    # Tab 1: Comments & Discussion
-    with tab1:
-        st.subheader("💬 Thảo luận & Bình luận")
-        
-        # Get current user info (demo - in production would use auth)
-        with st.expander("👤 Thông tin người dùng", expanded=False):
-            col1, col2 = st.columns(2)
-            with col1:
-                current_user_name = st.text_input("Tên của bạn", value="User Demo", key="collab_user_name")
-            with col2:
-                current_user_email = st.text_input("Email của bạn", value="user@example.com", key="collab_user_email")
-        
-        st.markdown("---")
-        
-        # Render comment section
-        collaboration_manager.render_comment_section(
-            project_id=selected_project_id,
-            user_name=current_user_name,
-            user_email=current_user_email
-        )
-    
-    # Tab 2: Activity Log
-    with tab2:
-        st.subheader("📊 Lịch sử Hoạt động")
-        
-        # Activity statistics
-        col1, col2, col3 = st.columns(3)
-        
-        stats = collaboration_manager.get_collaboration_stats(selected_project_id)
-        
-        with col1:
-            st.metric("💬 Tổng bình luận", stats['total_comments'])
-        
-        with col2:
-            st.metric("📝 Tổng hoạt động", stats['total_activities'])
-        
-        with col3:
-            st.metric("🔥 Hoạt động 7 ngày qua", stats['recent_activity_count'])
-        
-        st.markdown("---")
-        
-        # Activity timeline
-        collaboration_manager.render_activity_timeline(selected_project_id, limit=30)
-    
-    # Tab 3: Meetings
-    with tab3:
-        # Get current user
-        current_user = st.session_state.get('collab_user_name', 'User Demo')
-        
-        # Render meetings page
-        meeting_manager.render_meetings_page(selected_project_id, current_user)
-    
-    # Tab 4: Notifications
-    with tab4:
-        st.subheader("🔔 Thông báo")
-        
-        # User email for notifications
-        user_email = st.text_input(
-            "Email để nhận thông báo",
-            value="user@example.com",
-            key="notification_email"
-        )
-        
-        st.markdown("---")
-        
-        # Notification summary
-        summary = notification_system.get_notification_summary(user_email)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("📧 Tổng thông báo", summary['total'])
-        with col2:
-            st.metric("🔴 Chưa đọc", summary['unread'])
-        
-        st.markdown("---")
-        
-        # Show notifications
-        notifications = notification_system.get_unread_notifications(user_email)
-        
-        if not notifications.empty:
-            st.write("**🔔 Thông báo chưa đọc:**")
-            
-            for _, notif in notifications.iterrows():
-                with st.expander(f"{notif['title']} - {pd.to_datetime(notif['created_at']).strftime('%d/%m/%Y %H:%M')}"):
-                    st.write(notif['message'])
-                    st.write(f"**Loại:** {notif['notification_type']}")
-                    
-                    if st.button("✅ Đánh dấu đã đọc", key=f"mark_read_{notif['id']}"):
-                        notification_system.mark_as_read(notif['id'])
-                        st.success("Đã đánh dấu!")
-                        st.rerun()
-        else:
-            st.info("✅ Bạn không có thông báo mới!")
-        
-        st.markdown("---")
-        
-        # Email configuration (for admins)
-        with st.expander("⚙️ Cấu hình Email (Admin)", expanded=False):
-            st.warning("⚠️ Tính năng này chỉ dành cho quản trị viên")
-            
-            with st.form("smtp_config_form"):
-                st.write("**SMTP Configuration**")
-                
-                smtp_server = st.text_input("SMTP Server", value="smtp.gmail.com")
-                smtp_port = st.number_input("SMTP Port", value=587, min_value=1, max_value=65535)
-                smtp_username = st.text_input("Username/Email")
-                smtp_password = st.text_input("Password", type="password")
-                from_email = st.text_input("From Email")
-                
-                submitted = st.form_submit_button("💾 Lưu cấu hình")
-                
-                if submitted:
-                    if all([smtp_server, smtp_port, smtp_username, smtp_password, from_email]):
-                        notification_system.configure_smtp(
-                            server=smtp_server,
-                            port=smtp_port,
-                            username=smtp_username,
-                            password=smtp_password,
-                            from_email=from_email
-                        )
-                        st.success("✅ Đã cấu hình SMTP!")
-                    else:
-                        st.error("Vui lòng điền đầy đủ thông tin!")
-        
-        st.markdown("---")
-        
-        # Test notification
-        with st.expander("🧪 Gửi thông báo test", expanded=False):
-            test_email = st.text_input("Email nhận", key="test_notif_email")
-            test_subject = st.text_input("Tiêu đề", value="Test Notification")
-            test_message = st.text_area("Nội dung", value="Đây là thông báo test từ hệ thống")
-            
-            if st.button("📤 Gửi thông báo test"):
-                if test_email:
-                    body_html = f"""
-                    <html>
-                        <body>
-                            <h2>Test Notification</h2>
-                            <p>{test_message}</p>
-                        </body>
-                    </html>
-                    """
-                    
-                    success = notification_system.send_email(
-                        to_email=test_email,
-                        subject=test_subject,
-                        body_html=body_html
-                    )
-                    
-                    if success:
-                        st.success("✅ Đã gửi email test!")
-                    else:
-                        st.warning("⚠️ SMTP chưa được cấu hình hoặc có lỗi. Check logs.")
-                else:
-                    st.error("Vui lòng nhập email!")
-
 # ==================== HƯỚNG DẪN SỬ DỤNG ====================
 def render_user_guide():
     st.header("❓ Hướng dẫn Sử dụng")
@@ -1267,9 +1064,6 @@ def main():
     
     elif selected_menu == "📊 Dashboard & Thống kê":
         render_dashboard()
-    
-    elif selected_menu == "💬 Collaboration":
-        render_collaboration()
     
     elif selected_menu == "🏢 Quản lý Phòng/Ban":
         render_departments()
