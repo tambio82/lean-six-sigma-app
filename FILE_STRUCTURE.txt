@@ -1,0 +1,155 @@
+╔══════════════════════════════════════════════════════════════╗
+║           📁 PROJECT FILE STRUCTURE                          ║
+╚══════════════════════════════════════════════════════════════╝
+
+lean-six-sigma-app/
+│
+├── 📄 CORE APPLICATION FILES (UPLOAD TO GITHUB)
+│   ├── app.py                  ← REPLACE with app_updated.py
+│   ├── database.py             ← ALREADY UPLOADED ✅
+│   ├── dmaic_tools.py          ← ALREADY UPLOADED ✅
+│   ├── dashboard.py            ← EXISTING (no changes)
+│   ├── gantt_chart.py          ← EXISTING (no changes)
+│   ├── export_pdf.py           ← EXISTING (no changes)
+│   └── requirements.txt        ← EXISTING (no changes)
+│
+├── 📚 DOCUMENTATION (REFERENCE)
+│   ├── QUICK_START.txt         → Start here! (3-step guide)
+│   ├── DEPLOYMENT_GUIDE.txt    → Detailed instructions
+│   ├── FINAL_SUMMARY.txt       → Complete overview
+│   ├── SUMMARY_REPORT.txt      → Technical details
+│   └── HUONG_DAN_TRIEN_KHAI.txt → Vietnamese guide
+│
+├── 💻 CODE REFERENCES
+│   ├── app_updated.py          → New version of app.py
+│   ├── CODE_SNIPPET_INTEGRATION.py → Code examples
+│   └── app.py (original)       → Backup/reference
+│
+└── ⚙️ CONFIGURATION
+    └── HUONG_DAN_CAU_HINH.txt  → Original setup guide
+
+═══════════════════════════════════════════════════════════════
+
+📊 DATABASE STRUCTURE (SUPABASE)
+
+projects (TABLE)
+│
+├── 🆕 methodology (VARCHAR)    ← NEW COLUMN
+│
+├── dmaic_define (TABLE)        ← NEW
+├── dmaic_measure (TABLE)       ← NEW
+├── dmaic_analyze (TABLE)       ← NEW
+├── dmaic_improve (TABLE)       ← NEW
+├── dmaic_control (TABLE)       ← NEW
+│
+├── methodology_phases (TABLE)  ← NEW (for PDCA/PDSA)
+│
+├── project_documents (TABLE)   ← NEW
+├── document_versions (TABLE)   ← NEW
+│
+├── project_comments (TABLE)    ← NEW
+├── activity_log (TABLE)        ← NEW
+├── notifications (TABLE)       ← NEW
+└── meeting_minutes (TABLE)     ← NEW
+
+═══════════════════════════════════════════════════════════════
+
+🎨 UI STRUCTURE (APP)
+
+Main Menu
+│
+├── 🏠 Trang chủ
+│   └── Shows methodology column
+│
+├── ➕ Thêm dự án mới
+│   └── 🆕 Methodology dropdown (DMAIC/PDCA/PDSA)
+│
+├── 📝 Quản lý dự án
+│   ├── 📄 Thông tin
+│   │   └── 🆕 Edit methodology
+│   ├── 👥 Thành viên
+│   ├── 🤝 Stakeholders
+│   ├── 📅 Kế hoạch (Gantt)
+│   ├── 🆕 🔄 DMAIC Tracking ← NEW TAB!
+│   │   ├── 📋 Define Phase
+│   │   │   ├── SIPOC Diagram
+│   │   │   ├── Project Charter
+│   │   │   └── Voice of Customer
+│   │   ├── 📊 Measure Phase
+│   │   │   ├── Data Collection
+│   │   │   ├── Baseline Metrics
+│   │   │   └── Process Mapping
+│   │   ├── 🔍 Analyze Phase
+│   │   │   ├── Fishbone Diagram
+│   │   │   ├── 5 Whys
+│   │   │   ├── Pareto Chart
+│   │   │   └── Statistical Analysis
+│   │   ├── ⚡ Improve Phase
+│   │   │   ├── Solution Brainstorming
+│   │   │   ├── Pilot Testing
+│   │   │   └── Before/After Comparison
+│   │   └── 🎯 Control Phase
+│   │       ├── Control Plans
+│   │       ├── SOPs
+│   │       └── Sustainability
+│   ├── ✍️ Ký tên
+│   └── 📤 Xuất báo cáo
+│
+├── 📊 Dashboard & Thống kê
+├── 🏢 Quản lý Phòng/Ban
+├── 📤 Import/Export
+└── ❓ Hướng dẫn sử dụng
+
+═══════════════════════════════════════════════════════════════
+
+🔢 CODE STATISTICS
+
+File                    Lines    Size     Status
+───────────────────────────────────────────────────────────────
+database.py             1,180    38KB     ✅ Updated
+dmaic_tools.py            877    39KB     ✅ New
+app_updated.py          1,100    44KB     ⏳ Ready to deploy
+───────────────────────────────────────────────────────────────
+TOTAL CODE              3,157    121KB    
+
+Documentation Files       357    93KB     ✅ Complete
+───────────────────────────────────────────────────────────────
+GRAND TOTAL             3,514    214KB
+
+═══════════════════════════════════════════════════════════════
+
+🎯 DEPLOYMENT CHECKLIST
+
+PRE-DEPLOYMENT:
+  [✅] Database schema updated
+  [✅] Files created and tested
+  [✅] Documentation complete
+  [✅] Backup plan ready
+
+DEPLOYMENT STEPS:
+  [⏳] 1. Upload app_updated.py → app.py
+  [⏳] 2. Verify Streamlit Cloud deployment
+  [⏳] 3. Test DMAIC functionality
+  [⏳] 4. Verify data persistence
+
+POST-DEPLOYMENT:
+  [⏳] 5. Create test projects
+  [⏳] 6. Train end users
+  [⏳] 7. Gather feedback
+  [⏳] 8. Plan Phase 2
+
+═══════════════════════════════════════════════════════════════
+
+📞 QUICK HELP
+
+Need help? Check these files in order:
+
+1. QUICK_START.txt         ← 5-minute overview
+2. DEPLOYMENT_GUIDE.txt    ← Step-by-step guide
+3. FINAL_SUMMARY.txt       ← Complete details
+
+═══════════════════════════════════════════════════════════════
+Generated: November 19, 2025
+Version: 1.0
+Status: READY ✅
+═══════════════════════════════════════════════════════════════

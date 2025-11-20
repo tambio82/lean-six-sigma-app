@@ -1,0 +1,104 @@
+═══════════════════════════════════════════════════════════
+    QUICK DEPLOYMENT GUIDE - DMAIC INTEGRATION
+═══════════════════════════════════════════════════════════
+
+## ⚡ 3 BƯỚC CHÍNH (30 phút)
+
+┌─────────────────────────────────────────────────────────┐
+│  BƯỚC 1: Upload app_updated.py → app.py (10 phút)      │
+├─────────────────────────────────────────────────────────┤
+│  1. Vào: github.com/tambio82/lean-six-sigma-app        │
+│  2. Click file "app.py" → Edit (icon ✏️)               │
+│  3. Xóa hết → Paste nội dung app_updated.py            │
+│  4. Commit: "Add DMAIC integration"                     │
+│  5. Đợi Streamlit Cloud redeploy (2-3 phút)            │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│  BƯỚC 2: Test App (15 phút)                            │
+├─────────────────────────────────────────────────────────┤
+│  1. Vào app: lean-six-sigma-app-umc.streamlit.app     │
+│  2. Tạo dự án mới                                       │
+│  3. Chọn "Phương pháp: DMAIC"                          │
+│  4. Lưu → Vào tab "DMAIC Tracking"                     │
+│  5. Test Define phase → Nhập SIPOC                     │
+│  6. Lưu → Refresh → Kiểm tra data còn                  │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│  BƯỚC 3: Verify (5 phút)                               │
+├─────────────────────────────────────────────────────────┤
+│  ✅ Tạo dự án mới thành công                           │
+│  ✅ Tab DMAIC xuất hiện                                │
+│  ✅ 5 phases hoạt động (Define → Control)              │
+│  ✅ Data được lưu và hiển thị lại sau refresh          │
+│  ✅ Edit methodology hoạt động                         │
+└─────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════
+
+## 🆘 NẾU GẶP LỖI
+
+┌─────────────────────────────────────────────────────────┐
+│  LỖI: "Column methodology not found"                    │
+├─────────────────────────────────────────────────────────┤
+│  FIX: Vào Supabase → SQL Editor → Chạy:               │
+│                                                         │
+│  ALTER TABLE projects                                   │
+│  ADD COLUMN methodology VARCHAR(20) DEFAULT 'DMAIC';    │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│  LỖI: "Module dmaic_tools not found"                    │
+├─────────────────────────────────────────────────────────┤
+│  FIX: Upload file dmaic_tools.py lên GitHub            │
+│  (File này đã được tạo sẵn)                            │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│  LỖI: App không load                                    │
+├─────────────────────────────────────────────────────────┤
+│  FIX: Streamlit Cloud → Click app → Reboot            │
+└─────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════
+
+## 📦 FILES CẦN UPLOAD
+
+✅ database.py (ĐÃ UPLOAD)
+✅ dmaic_tools.py (ĐÃ UPLOAD)
+⏳ app.py ← Thay bằng nội dung app_updated.py
+
+═══════════════════════════════════════════════════════════
+
+## 🎯 FEATURES MỚI SAU KHI DEPLOY
+
+1. Dropdown "Phương pháp cải tiến" khi tạo dự án
+   - DMAIC
+   - PDCA
+   - PDSA
+
+2. Tab "🔄 DMAIC Tracking" trong quản lý dự án
+   - Define: SIPOC, Charter, VOC
+   - Measure: Baseline, Process Map
+   - Analyze: Fishbone, 5 Whys, Pareto
+   - Improve: Solutions, Pilot Tests
+   - Control: Control Plans, SOPs
+
+3. Hiển thị Methodology ở mọi nơi
+   - Dashboard
+   - Danh sách dự án
+   - Chi tiết dự án
+
+═══════════════════════════════════════════════════════════
+
+## 📞 SUPPORT
+
+Nếu cần hỗ trợ:
+- Đọc: DEPLOYMENT_GUIDE.txt (chi tiết)
+- Đọc: SUMMARY_REPORT.txt (tổng quan)
+- Screenshot lỗi và gửi cho Claude
+
+═══════════════════════════════════════════════════════════
+Version: 1.0 | Date: Nov 19, 2025 | Status: READY ✅
+═══════════════════════════════════════════════════════════
