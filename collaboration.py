@@ -1,485 +1,487 @@
 """
-Module Collaboration & Discussion
-Quản lý comments, mentions, và activity log
+Collaboration Module - Main Integration
+Combines all collaboration features into one cohesive interface
 """
 
 import streamlit as st
-import pandas as pd
 from datetime import datetime
-import re
+from typing import Optional
 
-class CollaborationManager:
+# Import collaboration modules
+from notification_service import NotificationService, get_notification_service
+from activity_tracker import ActivityTracker
+from comments_manager import CommentsManager, render_comment_section
+from meeting_manager import MeetingManager, render_meeting_minutes_section
+
+
+class CollaborationHub:
     """
-    Quản lý collaboration features: comments, mentions, activity log
+    Main collaboration hub that integrates all features
     """
     
-    def __init__(self, db, notification_system=None):
+    def __init__(self, database):
         """
-        Initialize collaboration manager
+        Initialize collaboration hub
         
         Args:
-            db: ProjectDatabase instance
-            notification_system: NotificationSystem instance (optional)
+            database: ProjectDatabase instance
         """
-        self.db = db
-        self.notification_system = notification_system
+        self.db = database
+        
+        # Initialize services
+        self.notification_service = get_notification_service()
+        self.activity_tracker = ActivityTracker(database)
+        self.comments_manager = CommentsManager(
+            database,
+            self.notification_service,
+            self.activity_tracker
+        )
+        self.meeting_manager = MeetingManager(
+            database,
+            self.activity_tracker
+        )
     
-    # ===== COMMENTS & DISCUSSION =====
-    
-    def add_comment(self, project_id, user_name, user_email, comment_text, parent_comment_id=None):
+    def render(self, project_id: int, project: dict, current_user: str):
         """
-        Add a new comment to a project
+        Render complete collaboration interface
         
         Args:
             project_id: Project ID
-            user_name: Name of the commenter
-            user_email: Email of the commenter
-            comment_text: Comment text
-            parent_comment_id: ID of parent comment (for replies)
-        
-        Returns:
-            int: Comment ID
+            project: Project dict
+            current_user: Current user name
         """
-        # Extract mentions from comment
-        mentions = self._extract_mentions(comment_text)
+        st.subheader("💬 Cộng tác & Giao tiếp")
         
-        comment_data = {
-            'project_id': project_id,
-            'user_name': user_name,
-            'user_email': user_email,
-            'comment_text': comment_text,
-            'parent_comment_id': parent_comment_id,
-            'mentions': ','.join(mentions) if mentions else None
-        }
+        # Create tabs for different collaboration features
+        tabs = st.tabs([
+            "💭 Bình luận",
+            "📋 Nhật ký Hoạt động",
+            "🗓️ Biên bản Họp",
+            "📧 Thông báo"
+        ])
         
-        comment_id = self.db.add_comment(comment_data)
+        # Tab 1: Comments
+        with tabs[0]:
+            self.render_comments_tab(project_id, current_user)
         
-        # Log activity
-        self.log_activity(
-            project_id=project_id,
-            user_name=user_name,
-            user_email=user_email,
-            activity_type='comment_added',
-            activity_description=f"Đã thêm bình luận: {comment_text[:50]}...",
-            entity_type='comment',
-            entity_id=comment_id
-        )
+        # Tab 2: Activity Log
+        with tabs[1]:
+            self.render_activity_log_tab(project_id)
         
-        # Send notifications for mentions
-        if mentions and self.notification_system:
-            self._notify_mentions(project_id, mentions, comment_text, user_name)
+        # Tab 3: Meeting Minutes
+        with tabs[2]:
+            self.render_meetings_tab(project_id, current_user)
         
-        return comment_id
+        # Tab 4: Notifications (placeholder)
+        with tabs[3]:
+            self.render_notifications_tab(project_id, current_user)
     
-    def _extract_mentions(self, text):
-        """
-        Extract @mentions from text
-        
-        Args:
-            text: Text to extract mentions from
-        
-        Returns:
-            list: List of mentioned usernames/emails
-        """
-        # Pattern: @username or @email
-        pattern = r'@(\w+(?:\.\w+)*(?:@[\w.-]+)?)'
-        matches = re.findall(pattern, text)
-        return matches
+    def render_comments_tab(self, project_id: int, current_user: str):
+        """Render comments tab"""
+        render_comment_section(project_id, current_user, self.comments_manager)
     
-    def _notify_mentions(self, project_id, mentions, comment_text, commenter_name):
-        """
-        Send notifications to mentioned users
-        """
-        if not self.notification_system:
+    def render_activity_log_tab(self, project_id: int):
+        """Render activity log tab"""
+        st.write("### 📋 Nhật ký Hoạt động")
+        
+        # Get activities
+        activities = self.db.get_activities(project_id, limit=50)
+        
+        if not activities:
+            st.info("Chưa có hoạt động nào được ghi nhận.")
             return
         
-        # Get all team members to find emails
-        team_members = self.db.get_team_members(project_id)
+        # Filter options
+        col1, col2 = st.columns([3, 1])
         
-        for mention in mentions:
-            # Try to find the mentioned user in team members
-            if '@' in mention:
-                # It's an email
-                mentioned_email = mention
-            else:
-                # It's a username, find email
-                member = team_members[team_members['name'].str.lower() == mention.lower()]
-                if not member.empty and pd.notna(member.iloc[0]['email']):
-                    mentioned_email = member.iloc[0]['email']
-                else:
-                    continue
+        with col1:
+            search = st.text_input("🔍 Tìm kiếm", placeholder="Tìm theo người dùng, hành động...")
+        
+        with col2:
+            action_types = ["All"] + list(set([a.get('action_type', '') for a in activities]))
+            filter_type = st.selectbox("Lọc theo loại", action_types)
+        
+        # Filter activities
+        filtered = activities
+        if search:
+            filtered = [a for a in filtered 
+                       if search.lower() in str(a).lower()]
+        
+        if filter_type != "All":
+            filtered = [a for a in filtered 
+                       if a.get('action_type') == filter_type]
+        
+        # Display count
+        st.metric("Tổng số hoạt động", len(filtered))
+        
+        # Display activities in timeline
+        st.markdown("---")
+        
+        for activity in filtered:
+            formatted = self.activity_tracker.format_activity_for_display(activity)
             
-            # Send notification
-            self.notification_system.notify_comment_mention(
-                project_id,
-                comment_text,
-                mentioned_email,
-                commenter_name
-            )
-    
-    def get_comments(self, project_id, include_replies=True):
-        """
-        Get all comments for a project
-        
-        Args:
-            project_id: Project ID
-            include_replies: Include reply comments
-        
-        Returns:
-            DataFrame: Comments data
-        """
-        comments = self.db.get_comments(project_id)
-        
-        if not include_replies:
-            comments = comments[comments['parent_comment_id'].isna()]
-        
-        return comments
-    
-    def get_comment_thread(self, comment_id):
-        """
-        Get a comment and all its replies
-        
-        Args:
-            comment_id: Comment ID
-        
-        Returns:
-            DataFrame: Comment thread
-        """
-        return self.db.get_comment_thread(comment_id)
-    
-    def update_comment(self, comment_id, comment_text, user_name, user_email):
-        """
-        Update a comment
-        """
-        self.db.update_comment(comment_id, comment_text)
-        
-        # Log activity
-        comment = self.db.get_comments(None)  # Get all to find this one
-        comment = comment[comment['id'] == comment_id]
-        
-        if not comment.empty:
-            self.log_activity(
-                project_id=comment.iloc[0]['project_id'],
-                user_name=user_name,
-                user_email=user_email,
-                activity_type='comment_updated',
-                activity_description=f"Đã cập nhật bình luận",
-                entity_type='comment',
-                entity_id=comment_id
-            )
-    
-    def delete_comment(self, comment_id, user_name, user_email):
-        """
-        Delete a comment
-        """
-        # Get comment info before deleting
-        all_comments = self.db.get_comments(None)
-        comment = all_comments[all_comments['id'] == comment_id]
-        
-        if not comment.empty:
-            project_id = comment.iloc[0]['project_id']
-            
-            self.db.delete_comment(comment_id)
-            
-            # Log activity
-            self.log_activity(
-                project_id=project_id,
-                user_name=user_name,
-                user_email=user_email,
-                activity_type='comment_deleted',
-                activity_description=f"Đã xóa bình luận",
-                entity_type='comment',
-                entity_id=comment_id
-            )
-    
-    def render_comment(self, comment, show_replies=True):
-        """
-        Render a single comment in Streamlit
-        
-        Args:
-            comment: Comment data (Series or dict)
-            show_replies: Show reply button
-        """
-        with st.container():
             col1, col2 = st.columns([1, 5])
             
             with col1:
-                # User avatar (using first letter of name)
-                st.markdown(f"""
-                <div style="width: 50px; height: 50px; border-radius: 50%; background-color: #1f4788; 
-                            color: white; display: flex; align-items: center; justify-content: center; 
-                            font-size: 20px; font-weight: bold;">
-                    {comment['user_name'][0].upper()}
-                </div>
-                """, unsafe_allow_html=True)
+                st.write(formatted['icon'])
             
             with col2:
-                st.markdown(f"""
-                <div style="background-color: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-                    <div style="margin-bottom: 5px;">
-                        <strong>{comment['user_name']}</strong>
-                        <span style="color: #6c757d; font-size: 12px; margin-left: 10px;">
-                            {self._format_datetime(comment['created_at'])}
-                        </span>
-                    </div>
-                    <div style="color: #212529;">
-                        {comment['comment_text']}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.write(f"**{formatted['user']}** {formatted['action']}")
                 
-                if show_replies:
-                    col_reply, col_edit, col_delete = st.columns([2, 2, 2])
-                    with col_reply:
-                        if st.button("💬 Reply", key=f"reply_{comment['id']}"):
-                            st.session_state[f'replying_to_{comment["id"]}'] = True
-                    
-                    # TODO: Add edit and delete buttons with permissions check
-    
-    def _format_datetime(self, dt_string):
-        """
-        Format datetime string for display
-        """
-        try:
-            dt = datetime.fromisoformat(dt_string)
-            now = datetime.now()
-            diff = now - dt
-            
-            if diff.days == 0:
-                if diff.seconds < 3600:
-                    minutes = diff.seconds // 60
-                    return f"{minutes} phút trước"
-                else:
-                    hours = diff.seconds // 3600
-                    return f"{hours} giờ trước"
-            elif diff.days == 1:
-                return "Hôm qua"
-            elif diff.days < 7:
-                return f"{diff.days} ngày trước"
-            else:
-                return dt.strftime("%d/%m/%Y %H:%M")
-        except:
-            return dt_string
-    
-    def render_comment_section(self, project_id, user_name, user_email):
-        """
-        Render complete comment section for a project
-        
-        Args:
-            project_id: Project ID
-            user_name: Current user name
-            user_email: Current user email
-        """
-        st.subheader("💬 Thảo luận & Bình luận")
-        
-        # Add new comment
-        with st.expander("✍️ Thêm bình luận mới", expanded=False):
-            comment_text = st.text_area(
-                "Nội dung bình luận",
-                placeholder="Nhập bình luận của bạn... (Dùng @tên để mention team members)",
-                height=100
-            )
-            
-            st.info("💡 **Tip**: Sử dụng @tên để nhắc đến team members")
-            
-            if st.button("📤 Đăng bình luận", type="primary"):
-                if comment_text.strip():
-                    self.add_comment(
-                        project_id=project_id,
-                        user_name=user_name,
-                        user_email=user_email,
-                        comment_text=comment_text
-                    )
-                    st.success("✅ Đã đăng bình luận!")
-                    st.rerun()
-                else:
-                    st.error("Vui lòng nhập nội dung bình luận")
-        
-        st.markdown("---")
-        
-        # Display comments
-        comments = self.get_comments(project_id, include_replies=False)
-        
-        if comments.empty:
-            st.info("Chưa có bình luận nào. Hãy là người đầu tiên bình luận!")
-        else:
-            st.write(f"**{len(comments)} bình luận**")
-            
-            for _, comment in comments.iterrows():
-                self.render_comment(comment)
+                # Parse timestamp
+                try:
+                    dt = datetime.fromisoformat(formatted['timestamp'])
+                    time_str = dt.strftime("%d/%m/%Y %H:%M")
+                except:
+                    time_str = formatted['timestamp']
                 
-                # Show replies
-                replies = self.get_comment_thread(comment['id'])
-                replies = replies[replies['id'] != comment['id']]  # Exclude parent
-                
-                if not replies.empty:
-                    with st.container():
-                        st.markdown('<div style="margin-left: 60px;">', unsafe_allow_html=True)
-                        for _, reply in replies.iterrows():
-                            self.render_comment(reply, show_replies=False)
-                        st.markdown('</div>', unsafe_allow_html=True)
-                
-                # Reply form
-                if st.session_state.get(f'replying_to_{comment["id"]}', False):
-                    with st.container():
-                        st.markdown('<div style="margin-left: 60px;">', unsafe_allow_html=True)
-                        reply_text = st.text_area(
-                            f"Trả lời {comment['user_name']}",
-                            key=f"reply_text_{comment['id']}"
-                        )
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button("Gửi trả lời", key=f"send_reply_{comment['id']}"):
-                                if reply_text.strip():
-                                    self.add_comment(
-                                        project_id=project_id,
-                                        user_name=user_name,
-                                        user_email=user_email,
-                                        comment_text=reply_text,
-                                        parent_comment_id=comment['id']
-                                    )
-                                    del st.session_state[f'replying_to_{comment["id"]}']
-                                    st.success("✅ Đã gửi trả lời!")
-                                    st.rerun()
-                        with col2:
-                            if st.button("Hủy", key=f"cancel_reply_{comment['id']}"):
-                                del st.session_state[f'replying_to_{comment["id"]}']
-                                st.rerun()
-                        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # ===== ACTIVITY LOG =====
-    
-    def log_activity(self, project_id, user_name, user_email, activity_type, 
-                     activity_description, entity_type=None, entity_id=None):
-        """
-        Log an activity
-        
-        Args:
-            project_id: Project ID
-            user_name: User name
-            user_email: User email
-            activity_type: Type of activity (e.g., 'comment_added', 'task_completed')
-            activity_description: Description of activity
-            entity_type: Type of entity (e.g., 'comment', 'task')
-            entity_id: ID of entity
-        
-        Returns:
-            int: Activity ID
-        """
-        activity_data = {
-            'project_id': project_id,
-            'user_name': user_name,
-            'user_email': user_email,
-            'activity_type': activity_type,
-            'activity_description': activity_description,
-            'entity_type': entity_type,
-            'entity_id': entity_id
-        }
-        
-        return self.db.log_activity(activity_data)
-    
-    def get_activity_log(self, project_id=None, limit=50):
-        """
-        Get activity log
-        
-        Args:
-            project_id: Project ID (None for all projects)
-            limit: Number of activities to return
-        
-        Returns:
-            DataFrame: Activity log
-        """
-        return self.db.get_activity_log(project_id, limit)
-    
-    def render_activity_timeline(self, project_id, limit=20):
-        """
-        Render activity timeline for a project
-        
-        Args:
-            project_id: Project ID
-            limit: Number of activities to display
-        """
-        st.subheader("📊 Lịch sử hoạt động")
-        
-        activities = self.get_activity_log(project_id, limit)
-        
-        if activities.empty:
-            st.info("Chưa có hoạt động nào được ghi nhận")
-            return
-        
-        # Group by date
-        activities['date'] = pd.to_datetime(activities['created_at']).dt.date
-        
-        for date in activities['date'].unique():
-            st.markdown(f"**📅 {date.strftime('%d/%m/%Y')}**")
-            
-            day_activities = activities[activities['date'] == date]
-            
-            for _, activity in day_activities.iterrows():
-                # Activity icon based on type
-                icon = self._get_activity_icon(activity['activity_type'])
-                
-                time_str = datetime.fromisoformat(activity['created_at']).strftime('%H:%M')
-                
-                st.markdown(f"""
-                <div style="margin-left: 20px; padding: 10px; border-left: 3px solid #1f4788; margin-bottom: 10px;">
-                    <div style="color: #6c757d; font-size: 12px;">{time_str}</div>
-                    <div>{icon} <strong>{activity['user_name']}</strong> {activity['activity_description']}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.caption(time_str)
             
             st.markdown("---")
     
-    def _get_activity_icon(self, activity_type):
-        """Get icon for activity type"""
-        icons = {
-            'comment_added': '💬',
-            'comment_updated': '✏️',
-            'comment_deleted': '🗑️',
-            'task_created': '✅',
-            'task_updated': '📝',
-            'task_completed': '🎉',
-            'project_created': '🚀',
-            'project_updated': '📋',
-            'member_added': '👤',
-            'signoff_completed': '✍️',
-            'milestone_achieved': '🎯'
-        }
-        return icons.get(activity_type, '📌')
+    def render_meetings_tab(self, project_id: int, current_user: str):
+        """Render meeting minutes tab"""
+        render_meeting_minutes_section(project_id, current_user, self.meeting_manager)
     
-    # ===== STATISTICS =====
+    def render_notifications_tab(self, project_id: int, current_user: str):
+        """Render notifications tab (placeholder for future)"""
+        st.write("### 📧 Thông báo")
+        
+        st.info("""
+        **Thông báo Email**
+        
+        Hệ thống sẽ tự động gửi email khi:
+        - ✅ Task sắp đến deadline (7, 3, 1 ngày trước)
+        - 💬 Ai đó @mention bạn trong bình luận
+        - ✍️ Có yêu cầu ký tên mới
+        - 🎉 Đạt milestone quan trọng
+        
+        **Cấu hình:**
+        - Email service: Đang sử dụng {provider}
+        - Trạng thái: {status}
+        
+        Để thay đổi cài đặt email, vui lòng liên hệ admin.
+        """.format(
+            provider="SendGrid" if self.notification_service else "Not configured",
+            status="✅ Hoạt động" if self.notification_service else "❌ Chưa cấu hình"
+        ))
+        
+        # Test email button
+        if st.button("🧪 Test Email Service"):
+            test_result = self.test_email_service(current_user)
+            if test_result:
+                st.success("✅ Email service hoạt động tốt!")
+            else:
+                st.error("❌ Email service chưa được cấu hình đúng")
     
-    def get_collaboration_stats(self, project_id):
-        """
-        Get collaboration statistics for a project
+    def test_email_service(self, user_email: str) -> bool:
+        """Test email service"""
+        if not self.notification_service:
+            return False
         
-        Returns:
-            dict: Statistics
-        """
-        comments = self.get_comments(project_id)
-        activities = self.get_activity_log(project_id, limit=1000)
+        try:
+            from notification_service import EmailTemplates
+            
+            subject, html, text = EmailTemplates.task_deadline_reminder(
+                task_name="Test Task",
+                project_name="Test Project",
+                deadline="2025-12-31",
+                days_left=7,
+                progress=50,
+                owner="Test User",
+                project_url="https://example.com"
+            )
+            
+            return self.notification_service.send_email(
+                user_email,
+                subject,
+                html,
+                text
+            )
+        except Exception as e:
+            print(f"Error testing email: {e}")
+            return False
+
+
+# ==================== HELPER FUNCTIONS ====================
+
+def render_collaboration_tab(project_id: int, project: dict, 
+                            database, current_user: str = "Current User"):
+    """
+    Main function to render collaboration tab in app
+    
+    Args:
+        project_id: Project ID
+        project: Project dict
+        database: ProjectDatabase instance
+        current_user: Current user name
+    """
+    # Initialize collaboration hub
+    hub = CollaborationHub(database)
+    
+    # Render interface
+    hub.render(project_id, project, current_user)
+
+
+# ==================== AUTO-TRACKING INTEGRATION ====================
+
+def integrate_activity_tracking(database):
+    """
+    Integrate activity tracking into existing database methods
+    
+    This wraps existing database methods to auto-log activities
+    
+    Args:
+        database: ProjectDatabase instance
+    
+    Returns:
+        ActivityTracker instance
+    """
+    tracker = ActivityTracker(database)
+    
+    # Store original methods
+    original_add_project = database.add_project
+    original_add_team_member = database.add_team_member
+    original_add_task = database.add_task
+    original_add_signoff = database.add_signoff
+    
+    # Wrap methods with tracking
+    def add_project_with_tracking(project_data):
+        result = original_add_project(project_data)
+        if result:
+            tracker.log_project_created(
+                result,  # project_id
+                project_data.get('created_by', 'System'),
+                project_data.get('project_name', ''),
+                project_data.get('methodology', 'DMAIC')
+            )
+        return result
+    
+    def add_team_member_with_tracking(member_data):
+        result = original_add_team_member(member_data)
+        if result:
+            tracker.log_member_added(
+                member_data.get('project_id'),
+                member_data.get('added_by', 'System'),
+                member_data.get('name', ''),
+                member_data.get('role', '')
+            )
+        return result
+    
+    def add_task_with_tracking(task_data):
+        result = original_add_task(task_data)
+        if result:
+            tracker.log_task_added(
+                task_data.get('project_id'),
+                task_data.get('created_by', 'System'),
+                task_data.get('task_name', ''),
+                task_data.get('phase', '')
+            )
+        return result
+    
+    def add_signoff_with_tracking(signoff_data):
+        result = original_add_signoff(signoff_data)
+        if result:
+            tracker.log_signoff_completed(
+                signoff_data.get('project_id'),
+                signoff_data.get('name', ''),
+                signoff_data.get('role', '')
+            )
+        return result
+    
+    # Replace methods
+    database.add_project = add_project_with_tracking
+    database.add_team_member = add_team_member_with_tracking
+    database.add_task = add_task_with_tracking
+    database.add_signoff = add_signoff_with_tracking
+    
+    return tracker
+
+
+# ==================== NOTIFICATION SCHEDULER ====================
+
+def setup_notification_scheduler(database):
+    """
+    Set up background scheduler for automated notifications
+    
+    Args:
+        database: ProjectDatabase instance
+    
+    Returns:
+        APScheduler instance
+    """
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.cron import CronTrigger
         
-        # Top commenters
-        top_commenters = {}
-        if not comments.empty:
-            top_commenters = comments['user_name'].value_counts().head(5).to_dict()
+        scheduler = BackgroundScheduler()
         
-        # Activity by type
-        activity_by_type = {}
-        if not activities.empty:
-            activity_by_type = activities['activity_type'].value_counts().to_dict()
+        # Schedule daily deadline checks at 8 AM
+        scheduler.add_job(
+            func=check_deadlines_and_notify,
+            trigger=CronTrigger(hour=8, minute=0),
+            args=[database],
+            id='deadline_check',
+            name='Check task deadlines',
+            replace_existing=True
+        )
         
-        # Recent activity count (last 7 days)
-        recent_count = 0
-        if not activities.empty:
-            recent_date = datetime.now() - pd.Timedelta(days=7)
-            activities['created_at_dt'] = pd.to_datetime(activities['created_at'])
-            recent_count = len(activities[activities['created_at_dt'] > recent_date])
+        # Start scheduler
+        scheduler.start()
         
-        return {
-            'total_comments': len(comments),
-            'total_activities': len(activities),
-            'recent_activity_count': recent_count,
-            'top_commenters': top_commenters,
-            'activity_by_type': activity_by_type
-        }
+        return scheduler
+    
+    except ImportError:
+        print("APScheduler not installed. Run: pip install apscheduler")
+        return None
+    except Exception as e:
+        print(f"Error setting up scheduler: {e}")
+        return None
+
+
+def check_deadlines_and_notify(database):
+    """
+    Check all tasks for upcoming deadlines and send reminders
+    
+    Args:
+        database: ProjectDatabase instance
+    """
+    try:
+        from datetime import date, timedelta
+        from notification_service import send_notification
+        
+        # Get all projects
+        all_projects = database.get_all_projects()
+        
+        for project in all_projects:
+            project_id = project.get('id')
+            project_name = project.get('project_name', 'Unknown')
+            
+            # Get tasks for project
+            tasks = database.get_tasks(project_id)
+            
+            if tasks.empty:
+                continue
+            
+            # Check each task
+            for _, task in tasks.iterrows():
+                if task.get('status') == 'Hoàn thành':
+                    continue  # Skip completed tasks
+                
+                deadline = task.get('end_date')
+                if not deadline:
+                    continue
+                
+                try:
+                    deadline_date = datetime.fromisoformat(str(deadline)).date()
+                except:
+                    continue
+                
+                today = date.today()
+                days_until_deadline = (deadline_date - today).days
+                
+                # Send reminder for 7, 3, or 1 day before
+                if days_until_deadline in [7, 3, 1]:
+                    # Get responsible person's email
+                    responsible = task.get('responsible', '')
+                    
+                    # Try to find email from team members
+                    team_members = database.get_team_members(project_id)
+                    email = None
+                    
+                    for member in team_members:
+                        if member.get('name', '').lower() == responsible.lower():
+                            email = member.get('email')
+                            break
+                    
+                    if email:
+                        # Send notification
+                        send_notification(
+                            'task_deadline',
+                            email,
+                            {
+                                'task_name': task.get('task_name', ''),
+                                'project_name': project_name,
+                                'deadline': deadline_date.strftime('%d/%m/%Y'),
+                                'days_left': days_until_deadline,
+                                'progress': task.get('progress', 0),
+                                'owner': responsible,
+                                'url': f"https://your-app-url.com/project/{project_id}"
+                            }
+                        )
+    
+    except Exception as e:
+        print(f"Error checking deadlines: {e}")
+
+
+# ==================== CONFIGURATION ====================
+
+def get_collaboration_config():
+    """
+    Get collaboration configuration from Streamlit secrets
+    
+    Returns:
+        Dict with configuration
+    """
+    try:
+        import streamlit as st
+        
+        if hasattr(st, 'secrets') and 'collaboration' in st.secrets:
+            return dict(st.secrets['collaboration'])
+    except:
+        pass
+    
+    # Default configuration
+    return {
+        'enable_email_notifications': True,
+        'enable_activity_log': True,
+        'enable_comments': True,
+        'enable_meetings': True,
+        'deadline_reminders': [7, 3, 1],  # days
+        'max_comments_per_project': 1000,
+        'max_meetings_per_project': 100
+    }
+
+
+# ==================== INITIALIZATION ====================
+
+def initialize_collaboration(database, enable_scheduler=False):
+    """
+    Initialize all collaboration features
+    
+    Args:
+        database: ProjectDatabase instance
+        enable_scheduler: Enable background scheduler (default: False)
+    
+    Returns:
+        Dict with initialized components
+    """
+    print("Initializing collaboration features...")
+    
+    # Get configuration
+    config = get_collaboration_config()
+    
+    # Initialize components
+    components = {
+        'notification_service': get_notification_service(),
+        'activity_tracker': ActivityTracker(database),
+        'comments_manager': None,  # Created per-request
+        'meeting_manager': None,   # Created per-request
+        'scheduler': None,
+        'config': config
+    }
+    
+    # Integrate activity tracking
+    if config.get('enable_activity_log', True):
+        components['activity_tracker'] = integrate_activity_tracking(database)
+        print("✓ Activity tracking integrated")
+    
+    # Set up scheduler
+    if enable_scheduler and config.get('enable_email_notifications', True):
+        components['scheduler'] = setup_notification_scheduler(database)
+        if components['scheduler']:
+            print("✓ Notification scheduler started")
+    
+    print("✓ Collaboration features initialized")
+    
+    return components
