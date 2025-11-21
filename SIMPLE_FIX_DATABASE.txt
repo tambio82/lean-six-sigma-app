@@ -1,0 +1,204 @@
+╔══════════════════════════════════════════════════════════════╗
+║     🔧 SIMPLE FIX - DATABASE IMPORT ERROR                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+## ❌ CURRENT ERROR:
+
+```
+ImportError: cannot import name 'ProjectDatabase' from 'database'
+```
+
+Meaning: database.py file trên GitHub bị lỗi!
+
+═══════════════════════════════════════════════════════════════
+
+## ✅ SIMPLE SOLUTION (5 phút):
+
+### BƯỚC 1: XÓA database.py trên GitHub
+
+```
+1. Go to: https://github.com/tambio82/lean-six-sigma-app
+2. Find file: database.py
+3. Click on it
+4. Click: 🗑️ (Delete button) ở góc trên bên phải
+5. Scroll down
+6. Commit message: "Delete broken database.py"
+7. Click: "Commit changes"
+8. WAIT for GitHub to confirm deletion
+```
+
+### BƯỚC 2: DOWNLOAD database_FINAL.py
+
+```
+1. Click this link: computer:///mnt/user-data/outputs/database_FINAL.py
+2. Download to your computer
+3. Save to Desktop (easy to find)
+4. Verify file size: Should be ~50KB, 1181 lines
+```
+
+### BƯỚC 3: VERIFY FILE (Optional but recommended)
+
+Open database_FINAL.py in text editor and check:
+```
+Line 1: import pandas as pd
+Line 389: class ProjectDatabase:
+Line 390:     def __init__(self, connection_string=None):
+
+If you see these lines → File is CORRECT ✅
+If you DON'T see these → File is WRONG ❌
+```
+
+### BƯỚC 4: UPLOAD as database.py
+
+```
+1. Go back to: https://github.com/tambio82/lean-six-sigma-app
+2. Click: "Add file" → "Upload files"
+3. Drag database_FINAL.py from Desktop
+4. BEFORE committing:
+   - In the file list, click on "database_FINAL.py"
+   - Rename to: "database.py" (remove _FINAL)
+5. Commit message: "Add corrected database.py with collaboration"
+6. Click: "Commit changes"
+7. WAIT for green checkmark
+```
+
+### BƯỚC 5: VERIFY ON GITHUB
+
+```
+1. Refresh GitHub page
+2. Should see file: database.py (not database_FINAL.py)
+3. Click on it
+4. Check it opens and shows code
+5. Scroll to line 389: should see "class ProjectDatabase:"
+```
+
+### BƯỚC 6: WAIT FOR STREAMLIT
+
+```
+1. Go to: https://streamlit.io/cloud
+2. Open app: lean-six-sigma-app-umc
+3. Click: Logs tab
+4. Should see: "Deploying..." or "Rebooting..."
+5. Wait 2-3 minutes
+6. Look for: "App is live"
+```
+
+### BƯỚC 7: CHECK LOGS
+
+In Logs, you should see:
+```
+✅ "from database import ProjectDatabase" - NO ERROR
+✅ "App starting up"
+✅ "App is live"
+```
+
+You should NOT see:
+```
+❌ "ImportError: cannot import name 'ProjectDatabase'"
+❌ "NameError: name 'st' is not defined"
+```
+
+═══════════════════════════════════════════════════════════════
+
+## 🎯 QUICK VERSION (If you're confident):
+
+```
+1. Delete database.py on GitHub
+2. Download database_FINAL.py
+3. Upload to GitHub as database.py
+4. Wait for deploy
+5. Check logs
+```
+
+═══════════════════════════════════════════════════════════════
+
+## ⚠️ COMMON MISTAKES:
+
+❌ Uploading database_FINAL.py as "database_FINAL.py"
+   ✅ Must rename to "database.py"
+
+❌ Not deleting old database.py first
+   ✅ Delete old file before uploading new one
+
+❌ Uploading wrong file
+   ✅ Make sure it's database_FINAL.py from Claude outputs
+
+❌ Not waiting for deployment
+   ✅ Wait 2-3 minutes after upload
+
+═══════════════════════════════════════════════════════════════
+
+## 🔍 HOW TO VERIFY FILE IS CORRECT:
+
+### Method 1: Check file size
+```
+database_FINAL.py should be:
+- Size: ~50 KB
+- Lines: 1181 lines
+- If much smaller → WRONG FILE
+```
+
+### Method 2: Check first few lines
+```
+Open in text editor, first lines should be:
+import pandas as pd
+from datetime import datetime
+from sqlalchemy import create_engine...
+```
+
+### Method 3: Search for "ProjectDatabase"
+```
+Open in text editor
+Press Ctrl+F (or Cmd+F on Mac)
+Search for: "class ProjectDatabase"
+Should find it around line 389
+```
+
+═══════════════════════════════════════════════════════════════
+
+## 💬 IF STILL NOT WORKING:
+
+1. Take screenshot of GitHub showing database.py
+2. Take screenshot of error in Streamlit logs
+3. Share both with me
+4. I'll debug further
+
+═══════════════════════════════════════════════════════════════
+
+## ✅ SUCCESS CHECKLIST:
+
+Before Upload:
+□ Downloaded database_FINAL.py
+□ Verified file size (~50KB)
+□ Opened file and saw "class ProjectDatabase"
+
+During Upload:
+□ Deleted old database.py on GitHub
+□ Uploaded database_FINAL.py
+□ Renamed to database.py (removed _FINAL)
+□ Committed changes
+□ Saw green checkmark
+
+After Upload:
+□ Streamlit Cloud is deploying
+□ Checked logs
+□ No ImportError
+□ App is live
+□ Can open app
+
+═══════════════════════════════════════════════════════════════
+
+           🎯 KEY POINT:
+
+           File MUST be named: database.py
+           NOT: database_FINAL.py
+           NOT: database (1).py
+           NOT: anything else
+
+           Exact name: database.py
+
+═══════════════════════════════════════════════════════════════
+Created: November 21, 2025, 05:45 AM
+Status: SIMPLE FIX GUIDE
+Next: Follow 7 steps above
+═══════════════════════════════════════════════════════════════
