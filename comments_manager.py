@@ -87,7 +87,11 @@ class CommentsManager:
         """
         try:
             comments = self.db.get_comments(project_id)
-            return comments if comments is not None else []
+            # Convert DataFrame to list of dicts
+            if comments is not None and not comments.empty:
+                return comments.to_dict('records')
+            else:
+                return []
         except Exception as e:
             print(f"Error getting comments: {e}")
             return []

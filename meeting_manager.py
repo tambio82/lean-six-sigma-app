@@ -83,7 +83,11 @@ class MeetingManager:
         """
         try:
             meetings = self.db.get_meeting_minutes(project_id)
-            return meetings if meetings else []
+            # Convert DataFrame to list of dicts
+            if meetings is not None and not meetings.empty:
+                return meetings.to_dict('records')
+            else:
+                return []
         except Exception as e:
             print(f"Error getting meetings: {e}")
             return []
