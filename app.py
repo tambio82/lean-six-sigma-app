@@ -1,343 +1,362 @@
-# ========================================
-# APP.PY UPDATE CODE SNIPPET
-# Copy và paste vào app.py của bạn
-# ========================================
-
-# ==================== STEP 1: UPDATE IMPORTS ====================
-# Tìm dòng 12 trong app.py (sau "from dmaic_tools import DMAICTools")
-# THÊM dòng này:
-
-from pdca_pdsa_tools import PDCATools  # ← THÊM DÒNG NÀY
-
-# Sau khi thêm, section import sẽ trông như thế này:
 """
-from database import ProjectDatabase
-from dmaic_tools import DMAICTools
-from pdca_pdsa_tools import PDCATools  # ← MỚI
-from collaboration import render_collaboration_tab, initialize_collaboration
-from gantt_chart import (
-    create_gantt_chart, create_dmaic_gantt, 
-    get_project_progress, get_phase_summary, 
-    check_overdue_tasks
-)
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║              📋 READY-TO-COPY CODE SNIPPETS 📋                          ║
+║                                                                          ║
+║              Copy & Paste trực tiếp vào app.py của bạn                  ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
 """
 
+# ==================== SNIPPET 1: FOR render_add_project() ====================
+# Vị trí: SAU dòng budget = st.number_input(...)
+# Copy toàn bộ đoạn code từ đây:
 
-# ==================== STEP 2: REPLACE FUNCTION ====================
-# Tìm function render_dmaic_tracking (dòng 308-343)
-# XÓA toàn bộ function cũ và THAY BẰNG code sau:
+        # ==================== METHODOLOGY SELECTION ====================
+        st.write("---")
+        st.write("### 🔧 Phương pháp Cải tiến")
+        
+        col_method1, col_method2 = st.columns([3, 1])
+        
+        with col_method1:
+            methodology = st.selectbox(
+                "Chọn Methodology *",
+                ["DMAIC", "PDCA", "PDSA"],
+                index=0,
+                help="""
+                • DMAIC: Define → Measure → Analyze → Improve → Control (Six Sigma)
+                • PDCA: Plan → Do → Check → Act (Deming Cycle)
+                • PDSA: Plan → Do → Study → Act (Quality Improvement)
+                """
+            )
+        
+        with col_method2:
+            methodology_icons = {
+                'DMAIC': '🔵',
+                'PDCA': '🟢',
+                'PDSA': '🟡'
+            }
+            st.markdown(f"### {methodology_icons.get(methodology, '⚪')} {methodology}")
+        
+        # Info expander
+        methodology_info = {
+            'DMAIC': {
+                'name': 'DMAIC - Six Sigma',
+                'phases': '5 phases: Define → Measure → Analyze → Improve → Control',
+                'best_for': '✅ Dự án phức tạp, cần phân tích dữ liệu chi tiết',
+                'example': 'Ví dụ: Giảm thời gian chờ khám từ 60 phút xuống 30 phút'
+            },
+            'PDCA': {
+                'name': 'PDCA - Deming Cycle',
+                'phases': '4 phases: Plan → Do → Check → Act',
+                'best_for': '✅ Cải tiến quy trình, tiêu chuẩn hóa công việc',
+                'example': 'Ví dụ: Triển khai quy trình rửa tay 5 bước'
+            },
+            'PDSA': {
+                'name': 'PDSA - Quality Improvement',
+                'phases': '4 phases: Plan → Do → Study → Act',
+                'best_for': '✅ Đổi mới sáng tạo, học hỏi từ thử nghiệm',
+                'example': 'Ví dụ: Pilot chương trình giáo dục bệnh nhân tiểu đường'
+            }
+        }
+        
+        info = methodology_info[methodology]
+        
+        with st.expander(f"ℹ️ Tìm hiểu về {methodology}"):
+            st.write(f"**{info['name']}**")
+            st.write(f"📊 {info['phases']}")
+            st.write(f"{info['best_for']}")
+            st.write(f"💡 {info['example']}")
+        # ==================== END METHODOLOGY SELECTION ====================
 
-def render_dmaic_tracking(project_id, project):
-    """
-    Render methodology tracking interface - supports DMAIC, PDCA, PDSA
-    
-    UPDATED: Now supports all 3 methodologies
-    """
-    methodology = project.get('methodology', 'DMAIC')
-    
-    # Hiển thị methodology badge
-    methodology_icons = {
-        'DMAIC': '🔵',
-        'PDCA': '🟢',
-        'PDSA': '🟡'
-    }
-    
-    st.write(f"{methodology_icons.get(methodology, '⚪')} **Phương pháp:** {methodology}")
-    
-    if methodology == 'DMAIC':
-        # Render DMAIC tools (existing)
-        dmaic_tools = DMAICTools(db)
-        dmaic_tools.render_dmaic_tracker(project_id, project)
-    
-    elif methodology in ['PDCA', 'PDSA']:
-        # ← MỚI: Render PDCA/PDSA tools
-        pdca_tools = PDCATools(db)
-        pdca_tools.render_pdca_interface(project_id, methodology)
-    
-    else:
-        st.warning("Vui lòng chọn phương pháp cải tiến cho dự án trong tab **Thông tin**")
+# Đến đây! Paste vào app.py
 
 
-# ==================== THAT'S IT! ====================
-# Chỉ cần 2 thay đổi đơn giản:
-# 1. Thêm 1 dòng import
-# 2. Thay 1 function (35 dòng → 25 dòng)
-# 
-# Sau đó:
-# - Save file
-# - Git push
-# - Streamlit Cloud sẽ tự động redeploy!
-# ========================================
+# ==================== SNIPPET 2: FOR project_data dict ====================
+# Vị trí: Trong render_add_project(), khi tạo project_data
+# TÌM dòng có 'budget': budget,
+# THÊM dòng này NGAY SAU nó:
 
+                    'methodology': methodology,
 
-# ==================== VERIFICATION ====================
-# Sau khi update, kiểm tra:
-# 1. App khởi động không lỗi
-# 2. Tạo project với methodology = PDCA
-# 3. Vào tab "Tracking" sẽ thấy 4 tabs: Plan, Do, Check, Act
-# 4. Tạo project với methodology = PDSA  
-# 5. Vào tab "Tracking" sẽ thấy 4 tabs: Plan, Do, Study, Act
-# 6. DMAIC projects vẫn hiển thị 5 tabs: Define, Measure, Analyze, Improve, Control
-# ========================================
-
-
-# ==================== OPTIONAL: ADD METHODOLOGY COLUMN ====================
-# Nếu database chưa có cột 'methodology', thêm vào Supabase:
-
+# Ví dụ đầy đủ:
 """
-ALTER TABLE projects 
-ADD COLUMN IF NOT EXISTS methodology VARCHAR(10) DEFAULT 'DMAIC';
-
--- Có thể set giá trị mặc định:
-UPDATE projects 
-SET methodology = 'DMAIC' 
-WHERE methodology IS NULL;
-"""
-
-# ==================== DATABASE METHODS CHECK ====================
-# Nếu gặp lỗi "method not found", thêm vào database.py:
-
-"""
-# ==================== PDCA/PDSA HELPER METHODS ====================
-
-def get_pdca_data(self, project_id, methodology, phase, data_type):
-    '''Get PDCA/PDSA data from methodology_data table'''
-    query = '''
-        SELECT data_json FROM methodology_data
-        WHERE project_id = %s AND methodology = %s 
-        AND phase = %s AND data_type = %s
-        ORDER BY updated_at DESC LIMIT 1
-    '''
-    result = self.execute_query(query, (project_id, methodology, phase, data_type))
-    if result and not result.empty:
-        import json
-        return json.loads(result.iloc[0]['data_json'])
-    return None
-
-def save_pdca_data(self, project_id, methodology, phase, data_type, data):
-    '''Save PDCA/PDSA data to methodology_data table'''
-    import json
-    query = '''
-        INSERT INTO methodology_data 
-        (project_id, methodology, phase, data_type, data_json, updated_at)
-        VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-        ON CONFLICT (project_id, methodology, phase, data_type) 
-        DO UPDATE SET 
-            data_json = EXCLUDED.data_json, 
-            updated_at = CURRENT_TIMESTAMP
-    '''
-    return self.execute_update(
-        query, 
-        (project_id, methodology, phase, data_type, json.dumps(data))
-    )
-
-def get_pdca_actions(self, project_id, methodology, phase):
-    '''Get actions for PDCA/PDSA phase'''
-    query = '''
-        SELECT * FROM methodology_actions
-        WHERE project_id = %s AND methodology = %s AND phase = %s
-        ORDER BY start_date
-    '''
-    return self.execute_query(query, (project_id, methodology, phase))
-
-def add_pdca_action(self, project_id, methodology, phase, action_data):
-    '''Add action to methodology_actions table'''
-    query = '''
-        INSERT INTO methodology_actions 
-        (project_id, methodology, phase, action_name, responsible, 
-         start_date, end_date, description, resources, status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-    '''
-    params = (
-        project_id, methodology, phase,
-        action_data['action_name'], action_data['responsible'],
-        action_data['start_date'], action_data['end_date'],
-        action_data.get('description'), action_data.get('resources'),
-        action_data.get('status', 'Planned')
-    )
-    result = self.execute_query(query, params)
-    return result.iloc[0]['id'] if result is not None and not result.empty else None
-
-def update_pdca_action_status(self, action_id, new_status):
-    '''Update action status'''
-    query = '''
-        UPDATE methodology_actions 
-        SET status = %s 
-        WHERE id = %s
-    '''
-    return self.execute_update(query, (new_status, action_id))
-
-def update_pdca_action_notes(self, action_id, notes):
-    '''Update action notes'''
-    query = '''
-        UPDATE methodology_actions 
-        SET notes = %s 
-        WHERE id = %s
-    '''
-    return self.execute_update(query, (notes, action_id))
-
-def get_pdca_metrics(self, project_id, methodology, phase):
-    '''Get metrics for phase'''
-    query = '''
-        SELECT * FROM methodology_metrics
-        WHERE project_id = %s AND methodology = %s AND phase = %s
-        ORDER BY created_at
-    '''
-    return self.execute_query(query, (project_id, methodology, phase))
-
-def add_pdca_metric(self, project_id, methodology, phase, metric_data):
-    '''Add metric'''
-    query = '''
-        INSERT INTO methodology_metrics 
-        (project_id, methodology, phase, metric_name, baseline, 
-         target, unit, measurement_method, frequency)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-    '''
-    params = (
-        project_id, methodology, phase,
-        metric_data['metric_name'], metric_data['baseline'],
-        metric_data['target'], metric_data['unit'],
-        metric_data['measurement_method'], metric_data['frequency']
-    )
-    result = self.execute_query(query, params)
-    return result.iloc[0]['id'] if result is not None and not result.empty else None
-
-def get_pdca_measurements(self, project_id, methodology, phase):
-    '''Get measurements data'''
-    query = '''
-        SELECT * FROM methodology_measurements
-        WHERE project_id = %s AND methodology = %s AND phase = %s
-        ORDER BY measurement_date DESC
-    '''
-    return self.execute_query(query, (project_id, methodology, phase))
-
-def add_pdca_measurement(self, project_id, methodology, phase, measurement_data):
-    '''Add measurement'''
-    query = '''
-        INSERT INTO methodology_measurements 
-        (project_id, methodology, phase, metric_name, 
-         measured_value, measurement_date, notes)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-    '''
-    params = (
-        project_id, methodology, phase,
-        measurement_data['metric_name'], measurement_data['measured_value'],
-        measurement_data['measurement_date'], measurement_data.get('notes')
-    )
-    result = self.execute_query(query, params)
-    return result.iloc[0]['id'] if result is not None and not result.empty else None
-
-def get_pdca_issues(self, project_id, methodology, phase):
-    '''Get issues log'''
-    query = '''
-        SELECT * FROM methodology_issues
-        WHERE project_id = %s AND methodology = %s AND phase = %s
-        ORDER BY reported_date DESC
-    '''
-    return self.execute_query(query, (project_id, methodology, phase))
-
-def add_pdca_issue(self, project_id, methodology, phase, issue_data):
-    '''Add issue to log'''
-    query = '''
-        INSERT INTO methodology_issues 
-        (project_id, methodology, phase, issue_title, severity, 
-         description, action_taken, status, reported_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-    '''
-    params = (
-        project_id, methodology, phase,
-        issue_data['issue_title'], issue_data['severity'],
-        issue_data['description'], issue_data.get('action_taken'),
-        issue_data.get('status', 'Open'), issue_data['reported_date']
-    )
-    result = self.execute_query(query, params)
-    return result.iloc[0]['id'] if result is not None and not result.empty else None
-
-def update_pdca_issue_status(self, issue_id, new_status):
-    '''Update issue status'''
-    query = '''
-        UPDATE methodology_issues 
-        SET status = %s 
-        WHERE id = %s
-    '''
-    return self.execute_update(query, (new_status, issue_id))
-
-def get_pdca_lessons(self, project_id, methodology, phase):
-    '''Get lessons learned'''
-    query = '''
-        SELECT * FROM methodology_lessons
-        WHERE project_id = %s AND methodology = %s AND phase = %s
-        ORDER BY created_at DESC
-    '''
-    return self.execute_query(query, (project_id, methodology, phase))
-
-def add_pdca_lesson(self, project_id, methodology, phase, lesson_data):
-    '''Add lesson learned'''
-    query = '''
-        INSERT INTO methodology_lessons 
-        (project_id, methodology, phase, lesson_title, 
-         category, description, recommendation)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-    '''
-    params = (
-        project_id, methodology, phase,
-        lesson_data['lesson_title'], lesson_data['category'],
-        lesson_data['description'], lesson_data.get('recommendation')
-    )
-    result = self.execute_query(query, params)
-    return result.iloc[0]['id'] if result is not None and not result.empty else None
-
-def get_pdca_rollout_plan(self, project_id, methodology):
-    '''Get rollout plan'''
-    query = '''
-        SELECT * FROM methodology_rollout
-        WHERE project_id = %s AND methodology = %s
-        ORDER BY created_at
-    '''
-    return self.execute_query(query, (project_id, methodology))
-
-def add_pdca_rollout(self, project_id, methodology, rollout_data):
-    '''Add rollout item'''
-    query = '''
-        INSERT INTO methodology_rollout 
-        (project_id, methodology, department, timeline, 
-         responsible, resources, status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-    '''
-    params = (
-        project_id, methodology,
-        rollout_data['department'], rollout_data['timeline'],
-        rollout_data['responsible'], rollout_data.get('resources'),
-        rollout_data.get('status', 'Planned')
-    )
-    result = self.execute_query(query, params)
-    return result.iloc[0]['id'] if result is not None and not result.empty else None
-
-def mark_pdca_cycle_complete(self, project_id, methodology):
-    '''Mark PDCA/PDSA cycle as complete'''
-    query = '''
-        UPDATE projects 
-        SET status = 'Hoàn thành',
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = %s
-    '''
-    return self.execute_update(query, (project_id,))
-
-# END OF PDCA/PDSA METHODS
+                project_data = {
+                    'project_code': project_code,
+                    'project_name': project_name,
+                    'department': department,
+                    'category': category,
+                    'status': status,
+                    'start_date': str(start_date),
+                    'end_date': str(end_date),
+                    'budget': budget,
+                    'methodology': methodology,  # ⬅️ THÊM DÒNG NÀY
+                    'description': description,
+                    'problem_statement': problem_statement,
+                    'goal': goal,
+                    'scope': scope,
+                    'actual_cost': 0
+                }
 """
 
-# ==================== END OF CODE SNIPPET ====================
-# 
-# Tổng kết:
-# - Thêm 1 import
-# - Thay 1 function  
-# - (Optional) Thêm database methods nếu chưa có
-# 
-# Đơn giản vậy thôi! 🎉
-# ========================================
+
+# ==================== SNIPPET 3: FOR render_project_info() - EDIT FORM ====================
+# Vị trí: Trong render_project_info(), sau dropdown category
+# Copy toàn bộ đoạn code từ đây:
+
+            # Methodology selection
+            current_methodology = project.get('methodology', 'DMAIC')
+            methodology_options = ['DMAIC', 'PDCA', 'PDSA']
+            methodology_index = methodology_options.index(current_methodology) if current_methodology in methodology_options else 0
+            
+            methodology = st.selectbox(
+                "Phương pháp",
+                methodology_options,
+                index=methodology_index
+            )
+
+# Đến đây! Paste vào app.py
+
+
+# ==================== SNIPPET 4: FOR updated_data dict ====================
+# Vị trí: Trong render_project_info(), khi update project
+# TÌM dòng có 'budget': budget,
+# THÊM dòng này NGAY SAU nó:
+
+                'methodology': methodology,
+
+# Ví dụ đầy đủ:
+"""
+            updated_data = {
+                'project_name': project_name,
+                'department': department,
+                'category': category,
+                'status': status,
+                'start_date': str(start_date),
+                'end_date': str(end_date),
+                'budget': budget,
+                'methodology': methodology,  # ⬅️ THÊM DÒNG NÀY
+                'description': description,
+                'problem_statement': problem_statement,
+                'goal': goal,
+                'scope': scope
+            }
+"""
+
+
+# ==================== VISUAL GUIDE ====================
+"""
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        TRƯỚC KHI THÊM CODE                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   with col2:                                                            │
+│       status = st.selectbox("Trạng thái *", PROJECT_STATUS)            │
+│       start_date = st.date_input("Ngày bắt đầu *", ...)                │
+│       end_date = st.date_input("Ngày kết thúc *", ...)                 │
+│       budget = st.number_input("Ngân sách (VNĐ)", ...)                 │
+│                                                                         │
+│   # ⬇️⬇️⬇️ THÊM SNIPPET 1 VÀO ĐÂY ⬇️⬇️⬇️                               │
+│                                                                         │
+│   st.write("---")                                                       │
+│   st.write("### 2. Mô tả dự án")                                       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         SAU KHI THÊM CODE                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   with col2:                                                            │
+│       status = st.selectbox("Trạng thái *", PROJECT_STATUS)            │
+│       start_date = st.date_input("Ngày bắt đầu *", ...)                │
+│       end_date = st.date_input("Ngày kết thúc *", ...)                 │
+│       budget = st.number_input("Ngân sách (VNĐ)", ...)                 │
+│                                                                         │
+│   # ==================== METHODOLOGY SELECTION ====================    │
+│   st.write("---")                                                       │
+│   st.write("### 🔧 Phương pháp Cải tiến")                              │
+│                                                                         │
+│   col_method1, col_method2 = st.columns([3, 1])                        │
+│                                                                         │
+│   with col_method1:                                                     │
+│       methodology = st.selectbox(                                       │
+│           "Chọn Methodology *",                                         │
+│           ["DMAIC", "PDCA", "PDSA"],                                   │
+│           index=0                                                       │
+│       )                                                                 │
+│                                                                         │
+│   with col_method2:                                                     │
+│       st.markdown(f"### {icon} {methodology}")                         │
+│                                                                         │
+│   # ... methodology info expander ...                                  │
+│   # ==================== END METHODOLOGY ====================          │
+│                                                                         │
+│   st.write("---")                                                       │
+│   st.write("### 2. Mô tả dự án")                                       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+"""
+
+
+# ==================== QUICK CHECKLIST ====================
+"""
+□ STEP 1: Copy SNIPPET 1 → Paste sau dòng budget trong render_add_project()
+
+□ STEP 2: Copy SNIPPET 2 → Add 'methodology': methodology vào project_data
+
+□ STEP 3: Copy SNIPPET 3 → Paste sau dropdown category trong render_project_info()
+
+□ STEP 4: Copy SNIPPET 4 → Add 'methodology': methodology vào updated_data
+
+□ STEP 5: Save file
+
+□ STEP 6: Git commit & push
+
+□ STEP 7: Test!
+"""
+
+
+# ==================== COMPLETE EXAMPLE ====================
+# Đây là VÍ DỤ HOÀN CHỈNH của render_add_project() sau khi thêm code:
+
+def render_add_project_EXAMPLE():
+    """Complete example - FOR REFERENCE ONLY"""
+    st.subheader("➕ Thêm Dự Án Mới")
+    
+    with st.form("add_project_form"):
+        st.write("### 1. Thông tin chung")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Generate project code
+            all_projects = db.get_all_projects()
+            if len(all_projects) > 0:
+                last_code = all_projects['project_code'].iloc[0]
+                try:
+                    num = int(last_code.split('-')[2]) + 1
+                    project_code = f"LSS-2024-{num:03d}"
+                except:
+                    project_code = "LSS-2024-001"
+            else:
+                project_code = "LSS-2024-001"
+            
+            project_code = st.text_input("Mã dự án *", value=project_code)
+            project_name = st.text_input("Tên dự án *")
+            
+            departments = db.get_departments()
+            dept_list = departments['name'].tolist() if not departments.empty else []
+            department = st.selectbox("Phòng/Ban *", dept_list)
+            
+            category = st.selectbox("Danh mục *", LEAN_CATEGORIES)
+        
+        with col2:
+            status = st.selectbox("Trạng thái *", PROJECT_STATUS)
+            start_date = st.date_input("Ngày bắt đầu *", value=date.today())
+            end_date = st.date_input("Ngày kết thúc *", value=date.today())
+            budget = st.number_input("Ngân sách (VNĐ)", min_value=0, value=0)
+        
+        # ⬇️⬇️⬇️ SNIPPET 1 STARTS HERE ⬇️⬇️⬇️
+        st.write("---")
+        st.write("### 🔧 Phương pháp Cải tiến")
+        
+        col_method1, col_method2 = st.columns([3, 1])
+        
+        with col_method1:
+            methodology = st.selectbox(
+                "Chọn Methodology *",
+                ["DMAIC", "PDCA", "PDSA"],
+                index=0,
+                help="Chọn phương pháp cải tiến phù hợp"
+            )
+        
+        with col_method2:
+            methodology_icons = {
+                'DMAIC': '🔵',
+                'PDCA': '🟢',
+                'PDSA': '🟡'
+            }
+            st.markdown(f"### {methodology_icons.get(methodology, '⚪')} {methodology}")
+        
+        methodology_info = {
+            'DMAIC': {
+                'name': 'DMAIC - Six Sigma',
+                'phases': '5 phases: Define → Measure → Analyze → Improve → Control',
+                'best_for': '✅ Dự án phức tạp, cần phân tích dữ liệu chi tiết'
+            },
+            'PDCA': {
+                'name': 'PDCA - Deming Cycle',
+                'phases': '4 phases: Plan → Do → Check → Act',
+                'best_for': '✅ Cải tiến quy trình, tiêu chuẩn hóa'
+            },
+            'PDSA': {
+                'name': 'PDSA - Quality Improvement',
+                'phases': '4 phases: Plan → Do → Study → Act',
+                'best_for': '✅ Đổi mới sáng tạo, học hỏi từ thử nghiệm'
+            }
+        }
+        
+        info = methodology_info[methodology]
+        
+        with st.expander(f"ℹ️ Tìm hiểu về {methodology}"):
+            st.write(f"**{info['name']}**")
+            st.write(f"📊 {info['phases']}")
+            st.write(f"{info['best_for']}")
+        # ⬆️⬆️⬆️ SNIPPET 1 ENDS HERE ⬆️⬆️⬆️
+        
+        st.write("---")
+        st.write("### 2. Mô tả dự án")
+        
+        description = st.text_area("Mô tả chung", placeholder="Mô tả ngắn gọn về dự án")
+        problem_statement = st.text_area("Mô tả vấn đề", placeholder="Vấn đề cần giải quyết")
+        goal = st.text_area("Mục tiêu", placeholder="Mục tiêu của dự án")
+        scope = st.text_area("Phạm vi dự án", placeholder="Phạm vi và giới hạn của dự án")
+        
+        submitted = st.form_submit_button("💾 Lưu dự án", type="primary")
+        
+        if submitted:
+            if not project_code or not project_name or not department or not category:
+                st.error("⚠️ Vui lòng điền đầy đủ các trường bắt buộc (*)")
+            else:
+                try:
+                    # ⬇️⬇️⬇️ SNIPPET 2 IS HERE ⬇️⬇️⬇️
+                    project_data = {
+                        'project_code': project_code,
+                        'project_name': project_name,
+                        'department': department,
+                        'category': category,
+                        'status': status,
+                        'start_date': str(start_date),
+                        'end_date': str(end_date),
+                        'budget': budget,
+                        'methodology': methodology,  # ⬅️ SNIPPET 2
+                        'description': description,
+                        'problem_statement': problem_statement,
+                        'goal': goal,
+                        'scope': scope,
+                        'actual_cost': 0
+                    }
+                    # ⬆️⬆️⬆️ SNIPPET 2 ENDS HERE ⬆️⬆️⬆️
+                    
+                    project_id = db.add_project(project_data)
+                    st.success(f"✅ Đã tạo dự án {project_code} với phương pháp {methodology}!")
+                    st.balloons()
+                    
+                except Exception as e:
+                    st.error(f"❌ Lỗi khi tạo dự án: {str(e)}")
+
+
+# ==================== END OF SNIPPETS ====================
+"""
+Hướng dẫn sử dụng:
+
+1. Copy SNIPPET 1 → Paste vào app.py
+2. Copy SNIPPET 2 → Add vào project_data
+3. Copy SNIPPET 3 → Paste vào render_project_info()
+4. Copy SNIPPET 4 → Add vào updated_data
+5. Save, commit, push!
+
+Đơn giản vậy thôi! 💪
+"""
