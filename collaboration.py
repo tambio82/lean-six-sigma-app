@@ -1,6 +1,7 @@
 """
 Collaboration Module - Main Integration
 Combines all collaboration features into one cohesive interface
+FIXED: Removed limit parameter from get_activities call
 """
 
 import streamlit as st
@@ -84,12 +85,19 @@ class CollaborationHub:
         """Render activity log tab"""
         st.write("### 📋 Nhật ký Hoạt động")
         
-        # Get activities
-        activities = self.db.get_activities(project_id, limit=50)
+        # Get activities - FIXED: Removed limit parameter
+        activities = self.db.get_activities(project_id)
+        
+        # Convert to list if DataFrame
+        if hasattr(activities, 'to_dict'):
+            activities = activities.to_dict('records')
         
         if not activities:
             st.info("Chưa có hoạt động nào được ghi nhận.")
             return
+        
+        # Limit to last 50 activities
+        activities = activities[-50:] if len(activities) > 50 else activities
         
         # Filter options
         col1, col2 = st.columns([3, 1])
