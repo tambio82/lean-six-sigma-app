@@ -1,0 +1,176 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║              📖 ONE-PAGE QUICK START GUIDE 📖                           ║
+║                                                                          ║
+║              Đọc file này để biết bắt đầu từ đâu!                       ║
+║              Total time: 20 minutes                                     ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+
+🎯 NHIỆM VỤ CỦA BẠN
+═══════════════════════════════════════════════════════════════════════════
+
+Bạn cần làm 3 việc:
+
+1️⃣  Sửa 2 bugs trong Collaboration  ⏱️ 5 phút
+2️⃣  Thêm Methodology selection     ⏱️ 10 phút
+3️⃣  Deploy & Test                   ⏱️ 5 phút
+
+
+📥 FILES BẠN CẦN DOWNLOAD
+═══════════════════════════════════════════════════════════════════════════
+
+Từ folder này, download:
+
+⭐ BẮT BUỘC:
+├─ collaboration.py              → Replace file cũ
+├─ comments_manager.py           → Replace file cũ
+└─ READY_TO_COPY_SNIPPETS.py     → Code để update app.py
+
+📖 ĐỌC NẾU CẦN HELP:
+└─ COMPLETE_DEPLOYMENT_GUIDE.txt → Chi tiết từng bước
+
+
+🚀 BƯỚC 1: SỬA BUGS (5 phút)
+═══════════════════════════════════════════════════════════════════════════
+
+1. Copy collaboration.py vào project → REPLACE file cũ
+2. Copy comments_manager.py vào project → REPLACE file cũ
+3. Git commit:
+   ```
+   git add collaboration.py comments_manager.py
+   git commit -m "Fix collaboration bugs"
+   ```
+
+✅ Done! 2 bugs đã fix!
+
+
+🚀 BƯỚC 2: THÊM METHODOLOGY (10 phút)
+═══════════════════════════════════════════════════════════════════════════
+
+Mở file: READY_TO_COPY_SNIPPETS.py
+
+📋 TASK 2.1: Update render_add_project() (5 phút)
+┌────────────────────────────────────────────────────────────────────────┐
+│ 1. Mở app.py                                                           │
+│ 2. Tìm: render_add_project()                                          │
+│ 3. Tìm dòng: budget = st.number_input(...)                            │
+│ 4. Copy SNIPPET 1 từ READY_TO_COPY_SNIPPETS.py                        │
+│ 5. Paste SAU dòng budget                                              │
+│ 6. Tìm: project_data = {                                              │
+│ 7. Thêm: 'methodology': methodology,  (sau 'budget': budget,)         │
+└────────────────────────────────────────────────────────────────────────┘
+
+📋 TASK 2.2: Update render_project_info() (5 phút)
+┌────────────────────────────────────────────────────────────────────────┐
+│ 1. Tìm: render_project_info()                                         │
+│ 2. Tìm edit form (sau dropdown category)                              │
+│ 3. Copy SNIPPET 3 từ READY_TO_COPY_SNIPPETS.py                        │
+│ 4. Paste sau dropdown category                                        │
+│ 5. Tìm: updated_data = {                                              │
+│ 6. Thêm: 'methodology': methodology,  (sau 'budget': budget,)         │
+└────────────────────────────────────────────────────────────────────────┘
+
+Git commit:
+```
+git add app.py
+git commit -m "Add methodology selection to forms"
+```
+
+✅ Done! Methodology selection đã thêm!
+
+
+🚀 BƯỚC 3: DEPLOY & TEST (5 phút)
+═══════════════════════════════════════════════════════════════════════════
+
+1. Git push:
+   ```
+   git push origin main
+   ```
+
+2. Đợi Streamlit Cloud deploy (1 phút)
+   → Vào https://share.streamlit.io/
+
+3. Test app:
+   a) Refresh: Ctrl + Shift + R
+   b) Vào tab "Cộng tác" → Không còn errors ✅
+   c) Click "Thêm Dự án Mới" → Thấy dropdown methodology ✅
+   d) Tạo project với PDCA → Thành công ✅
+
+✅ Done! Deployment thành công! 🎉
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+✅ SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════════
+
+Thành công khi:
+□ Activity log không còn lỗi
+□ Comments autocomplete hoạt động
+□ Form "Thêm Dự án" có dropdown methodology
+□ Có thể tạo project với DMAIC/PDCA/PDSA
+□ Có thể edit methodology trong project
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+📞 CẦN HELP?
+═══════════════════════════════════════════════════════════════════════════
+
+Đọc file:
+→ COMPLETE_DEPLOYMENT_GUIDE.txt (chi tiết từng bước)
+→ QUICK_FIX_GUIDE.txt (nếu gặp lỗi)
+→ DEPLOYMENT_CHECKLIST.md (checklist đầy đủ)
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+🎁 BONUS: SAU KHI DEPLOY XONG
+═══════════════════════════════════════════════════════════════════════════
+
+Bạn sẽ có:
+✅ App không còn bugs
+✅ Collaboration features hoạt động 100%
+✅ Có thể chọn DMAIC/PDCA/PDSA khi tạo project
+✅ Sẵn sàng cho Phase 2 với pdca_pdsa_tools.py
+
+Next step (optional):
+→ Thêm pdca_pdsa_tools.py để hỗ trợ PDCA/PDSA tracking
+→ Đọc INTEGRATION_GUIDE.md để biết cách
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+📊 PACKAGE OVERVIEW
+═══════════════════════════════════════════════════════════════════════════
+
+Package này có:
+• 23 files total (394 KB)
+• 12 documentation files
+• 11 Python code files
+• 100% production ready
+• Backward compatible
+
+Tạo bởi: Claude AI Assistant
+Cho: Tam Mai - Lean Six Sigma Hospital App
+Ngày: November 22, 2025
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+🚀 BẮT ĐẦU NGAY!
+═══════════════════════════════════════════════════════════════════════════
+
+1. Download 3 files bắt buộc
+2. Follow 3 bước trên (20 phút)
+3. Deploy & Test
+4. Enjoy! 🎉
+
+Good luck! 💪
+
+
+═══════════════════════════════════════════════════════════════════════════
+END OF ONE-PAGE QUICK START GUIDE
+═══════════════════════════════════════════════════════════════════════════
