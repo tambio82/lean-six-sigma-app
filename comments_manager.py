@@ -1,6 +1,7 @@
 """
 Comments Manager Module
 Handles comments, @mentions, and discussion threads
+FIXED: Properly handle DataFrame from get_team_members
 """
 
 from datetime import datetime
@@ -88,10 +89,10 @@ class CommentsManager:
         try:
             comments = self.db.get_comments(project_id)
             # Convert DataFrame to list of dicts
-            if comments is not None and not comments.empty:
-                return comments.to_dict('records')
-            else:
-                return []
+            if comments is not None and hasattr(comments, 'to_dict'):
+                if not comments.empty:
+                    return comments.to_dict('records')
+            return []
         except Exception as e:
             print(f"Error getting comments: {e}")
             return []
@@ -188,11 +189,21 @@ class CommentsManager:
             project_name = project.get('project_name', 'Unknown Project')
             project_url = f"https://your-app-url.com/project/{project_id}"  # Update with actual URL
             
-            # Get team members to find emails
-            team_members = self.db.get_team_members(project_id)
+            # Get team members to find emails - FIXED: Handle DataFrame properly
+            team_members_df = self.db.get_team_members(project_id)
             
             # Create name -> email mapping
             email_map = {}
+            
+            # FIXED: Check if DataFrame and convert to list
+            if team_members_df is not None and hasattr(team_members_df, 'to_dict'):
+                if not team_members_df.empty:
+                    team_members = team_members_df.to_dict('records')
+                else:
+                    team_members = []
+            else:
+                team_members = []
+            
             for member in team_members:
                 name = member.get('name', '')
                 email = member.get('email', '')
@@ -238,9 +249,23 @@ class CommentsManager:
             List of user names
         """
         try:
-            team_members = self.db.get_team_members(project_id)
+            # FIXED: Properly handle DataFrame from get_team_members
+            team_members_df = self.db.get_team_members(project_id)
+            
+            # Convert DataFrame to list of dicts if needed
+            if team_members_df is not None and hasattr(team_members_df, 'to_dict'):
+                if not team_members_df.empty:
+                    team_members = team_members_df.to_dict('records')
+                else:
+                    team_members = []
+            else:
+                # If already a list, use it
+                team_members = team_members_df if team_members_df else []
+            
+            # Extract names
             names = [m.get('name', '') for m in team_members if m.get('name')]
             return sorted(names)
+            
         except Exception as e:
             print(f"Error getting autocomplete users: {e}")
             return []
