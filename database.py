@@ -386,6 +386,20 @@ class MeetingMinute(Base):
 
 # ==================== DATABASE CLASS ====================
 
+
+# ==================== PDCA/PDSA DATA MODEL ====================
+class PDCAData(Base):
+    __tablename__ = 'pdca_data'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(Integer, ForeignKey('projects.id', ondelete='CASCADE'))
+    methodology = Column(String(10), nullable=False)  # 'PDCA' or 'PDSA'
+    phase = Column(String(20), nullable=False)        # 'Plan', 'Do', 'Check', 'Study', 'Act'
+    component = Column(String(100), nullable=False)   # Component name
+    data = Column(JSON, nullable=False)               # Actual data as JSON
+    created_at = Column(String(30))
+    updated_at = Column(String(30))
+
 class ProjectDatabase:
     def __init__(self, connection_string=None):
         """
@@ -1176,5 +1190,109 @@ class ProjectDatabase:
         except Exception as e:
             session.rollback()
             raise e
+        finally:
+            session.close()
+
+    # ==================== PDCA/PDSA METHODS ====================
+    
+    def get_pdca_data(self, project_id, methodology, phase, component):
+        """
+        Get PDCA/PDSA data for a specific component
+        
+        Args:
+            project_id: Project ID
+            methodology: 'PDCA' or 'PDSA'
+            phase: 'Plan', 'Do', 'Check'/'Study', 'Act'
+            component: Component name (e.g., 'problem_statement', 'current_situation')
+            
+        Returns:
+            dict or None
+        """
+        conn = self.get_connection()
+        try:
+            query = """
+                SELECT data 
+                FROM pdca_data 
+                WHERE project_id = %(project_id)s 
+                AND methodology = %(methodology)s 
+                AND phase = %(phase)s 
+                AND component = %(component)s
+                ORDER BY updated_at DESC
+                LIMIT 1
+            """
+            
+            df = pd.read_sql_query(
+                query,
+                conn,
+                params={
+                    "project_id": project_id,
+                    "methodology": methodology,
+                    "phase": phase,
+                    "component": component
+                }
+            )
+            
+            if not df.empty:
+                # Parse JSON data
+                return json_module.loads(df.iloc[0]['data']) if isinstance(df.iloc[0]['data'], str) else df.iloc[0]['data']
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error getting PDCA data: {str(e)}")
+            return None
+        finally:
+            conn.close()
+    
+    def save_pdca_data(self, project_id, methodology, phase, component, data):
+        """
+        Save PDCA/PDSA data for a specific component
+        
+        Args:
+            project_id: Project ID
+            methodology: 'PDCA' or 'PDSA'
+            phase: 'Plan', 'Do', 'Check'/'Study', 'Act'
+            component: Component name
+            data: Data to save (will be converted to JSON)
+            
+        Returns:
+            bool: Success status
+        """
+        session = self.Session()
+        try:
+            now = datetime.now().isoformat()
+            
+            # Check if data already exists
+            existing = session.query(PDCAData).filter(
+                PDCAData.project_id == project_id,
+                PDCAData.methodology == methodology,
+                PDCAData.phase == phase,
+                PDCAData.component == component
+            ).first()
+            
+            if existing:
+                # Update existing data
+                existing.data = data
+                existing.updated_at = now
+            else:
+                # Insert new data
+                pdca_data = PDCAData(
+                    project_id=project_id,
+                    methodology=methodology,
+                    phase=phase,
+                    component=component,
+                    data=data,
+                    created_at=now,
+                    updated_at=now
+                )
+                session.add(pdca_data)
+            
+            session.commit()
+            return True
+            
+        except Exception as e:
+            session.rollback()
+            print(f"Error saving PDCA data: {str(e)}")
+            return False
         finally:
             session.close()
