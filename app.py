@@ -9,7 +9,7 @@ import os
 # Import các modules
 from database import ProjectDatabase
 from dmaic_tools import DMAICTools
-from pdca_pdsa_tools import PDCATools  # ← THÊM MỚI: Import PDCATools
+from pdca_pdsa_tools import PDCATools  # ← Import PDCATools
 from collaboration import render_collaboration_tab, initialize_collaboration
 from gantt_chart import (
     create_gantt_chart, create_dmaic_gantt, 
@@ -262,7 +262,7 @@ def render_manage_projects():
                 "👥 Thành viên", 
                 "🤝 Stakeholders",
                 "📅 Kế hoạch (Gantt)",
-                "🔄 Methodology Tracking",  # ← ĐỔI TÊN TAB
+                "🔄 Methodology Tracking",
                 "💬 Cộng tác",
                 "✍️ Ký tên",
                 "📤 Xuất báo cáo"
@@ -284,19 +284,23 @@ def render_manage_projects():
             with tab4:
                 render_gantt_plan(project_id)
             
-            # Tab 5: METHODOLOGY TRACKING (UPDATED!)
+            # Tab 5: METHODOLOGY TRACKING (FIXED!)
             with tab5:
                 render_methodology_tracking(project_id, project, db)
             
             # Tab 6: CỘNG TÁC
             with tab6:
-                current_user = st.session_state.get('user_name', 'Current User')
-                render_collaboration_tab(
-                    project_id=project_id,
-                    project=project,
-                    database=db,
-                    current_user=current_user
-                )
+                try:
+                    current_user = st.session_state.get('user_name', 'Current User')
+                    render_collaboration_tab(
+                        project_id=project_id,
+                        project=project,
+                        database=db,
+                        current_user=current_user
+                    )
+                except Exception as e:
+                    st.error(f"❌ Lỗi tab Cộng tác: {str(e)}")
+                    st.info("Tab Cộng tác đang được cập nhật. Vui lòng thử lại sau.")
             
             # Tab 7: Ký tên
             with tab7:
@@ -306,86 +310,84 @@ def render_manage_projects():
             with tab8:
                 render_export_report(project_id, project)
 
-# ==================== METHODOLOGY TRACKING (UPDATED FUNCTION!) ====================
+# ==================== METHODOLOGY TRACKING (FIXED FUNCTION!) ====================
 def render_methodology_tracking(project_id, project, database):
     """
-    Render methodology tracking interface
+    Render methodology tracking interface - FIXED VERSION
     Supports DMAIC, PDCA, and PDSA methodologies
     """
-    # Get project methodology
-    methodology = project.get('methodology', 'DMAIC')
-    
-    # Display header
-    st.write(f"### 🔧 {methodology} Tracking")
-    
-    # Methodology info badge
-    methodology_info_data = {
-        'DMAIC': {'icon': '🔵', 'phases': '5 phases', 'color': 'blue'},
-        'PDCA': {'icon': '🟢', 'phases': '4 phases', 'color': 'green'},
-        'PDSA': {'icon': '🟡', 'phases': '4 phases', 'color': 'orange'}
-    }
-    
-    info = methodology_info_data.get(methodology, {'icon': '⚪', 'phases': 'Unknown', 'color': 'gray'})
-    st.info(f"{info['icon']} **{methodology}** - {info['phases']}")
-    
-    # Render appropriate tracking interface
-    if methodology == 'DMAIC':
-        # ========== DMAIC TRACKING ==========
-        dmaic_tools = DMAICTools(database)
+    try:
+        # Get project methodology
+        methodology = project.get('methodology', 'DMAIC')
         
-        # Create DMAIC tabs
-        dmaic_tabs = st.tabs([
-            "1️⃣ Define",
-            "2️⃣ Measure",
-            "3️⃣ Analyze",
-            "4️⃣ Improve",
-            "5️⃣ Control"
-        ])
+        # Display header
+        st.write(f"### 🔧 {methodology} Tracking")
         
-        # Render each DMAIC phase
-        with dmaic_tabs[0]:
-            dmaic_tools.render_define_tab(project_id)
-        with dmaic_tabs[1]:
-            dmaic_tools.render_measure_tab(project_id)
-        with dmaic_tabs[2]:
-            dmaic_tools.render_analyze_tab(project_id)
-        with dmaic_tabs[3]:
-            dmaic_tools.render_improve_tab(project_id)
-        with dmaic_tabs[4]:
-            dmaic_tools.render_control_tab(project_id)
-    
-    elif methodology in ['PDCA', 'PDSA']:
-        # ========== PDCA/PDSA TRACKING ==========
-        pdca_tools = PDCATools(database)
-        pdca_tools.render_pdca_interface(project_id, methodology)
-    
-    else:
-        # ========== INVALID METHODOLOGY ==========
-        st.error(f"❌ Methodology không hợp lệ: {methodology}")
-        st.info("""
-        **Methodology hợp lệ:**
-        - DMAIC (Define-Measure-Analyze-Improve-Control)
-        - PDCA (Plan-Do-Check-Act)
-        - PDSA (Plan-Do-Study-Act)
+        # Methodology info badge
+        methodology_info_data = {
+            'DMAIC': {'icon': '🔵', 'phases': '5 phases', 'color': 'blue'},
+            'PDCA': {'icon': '🟢', 'phases': '4 phases', 'color': 'green'},
+            'PDSA': {'icon': '🟡', 'phases': '4 phases', 'color': 'orange'}
+        }
         
-        Vui lòng cập nhật methodology trong thông tin dự án.
-        """)
+        info = methodology_info_data.get(methodology, {'icon': '⚪', 'phases': 'Unknown', 'color': 'gray'})
+        st.info(f"{info['icon']} **{methodology}** - {info['phases']}")
         
-        # Option to update methodology
-        with st.expander("🔧 Cập nhật Methodology"):
-            new_methodology = st.selectbox(
-                "Chọn Methodology mới",
-                ['DMAIC', 'PDCA', 'PDSA'],
-                key=f"update_methodology_{project_id}"
-            )
+        # Render appropriate tracking interface
+        if methodology == 'DMAIC':
+            # ========== DMAIC TRACKING (FIXED CALL!) ==========
+            dmaic_tools = DMAICTools(database)
+            # ✅ FIX: Gọi render_dmaic_tracker() thay vì render_define_tab()
+            dmaic_tools.render_dmaic_tracker(project_id, project)
+        
+        elif methodology in ['PDCA', 'PDSA']:
+            # ========== PDCA/PDSA TRACKING ==========
+            try:
+                pdca_tools = PDCATools(database)
+                pdca_tools.render_pdca_interface(project_id, methodology)
+            except Exception as e:
+                st.error(f"❌ Lỗi khi load PDCA/PDSA tools: {str(e)}")
+                st.info(f"""
+                **Tính năng {methodology} đang được cập nhật.**
+                
+                Hiện tại bạn có thể:
+                - Sử dụng tab **Kế hoạch (Gantt)** để theo dõi tiến độ
+                - Sử dụng tab **Cộng tác** để ghi chú và thảo luận
+                
+                {methodology} tracking sẽ có sẵn sau khi deploy file pdca_pdsa_tools.py
+                """)
+        
+        else:
+            # ========== INVALID METHODOLOGY ==========
+            st.error(f"❌ Methodology không hợp lệ: {methodology}")
+            st.info("""
+            **Methodology hợp lệ:**
+            - DMAIC (Define-Measure-Analyze-Improve-Control)
+            - PDCA (Plan-Do-Check-Act)
+            - PDSA (Plan-Do-Study-Act)
             
-            if st.button("💾 Lưu Methodology", key=f"save_methodology_{project_id}"):
-                try:
-                    database.update_project(project_id, {'methodology': new_methodology})
-                    st.success(f"✅ Đã cập nhật methodology thành {new_methodology}!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Lỗi: {str(e)}")
+            Vui lòng cập nhật methodology trong thông tin dự án.
+            """)
+            
+            # Option to update methodology
+            with st.expander("🔧 Cập nhật Methodology"):
+                new_methodology = st.selectbox(
+                    "Chọn Methodology mới",
+                    ['DMAIC', 'PDCA', 'PDSA'],
+                    key=f"update_methodology_{project_id}"
+                )
+                
+                if st.button("💾 Lưu Methodology", key=f"save_methodology_{project_id}"):
+                    try:
+                        database.update_project(project_id, {'methodology': new_methodology})
+                        st.success(f"✅ Đã cập nhật methodology thành {new_methodology}!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Lỗi: {str(e)}")
+    
+    except Exception as e:
+        st.error(f"❌ Lỗi trong Methodology Tracking: {str(e)}")
+        st.info("Vui lòng kiểm tra lại file pdca_pdsa_tools.py và dmaic_tools.py")
 
 def render_project_info(project_id, project):
     st.subheader("Thông tin Dự án")
@@ -1157,7 +1159,7 @@ def render_user_guide():
     - Xem biểu đồ Gantt trực quan
     - Cảnh báo công việc quá hạn
     
-    #### 🔄 Methodology Tracking **← CẬP NHẬT!**
+    #### 🔄 Methodology Tracking
     
     **DMAIC Projects (5 phases):**
     - **DEFINE:** SIPOC Diagram, Project Charter, Voice of Customer
@@ -1166,23 +1168,12 @@ def render_user_guide():
     - **IMPROVE:** Solution Brainstorming, Pilot Testing, Before/After Comparison
     - **CONTROL:** Control Plans, SOPs, Sustainability Planning
     
-    **PDCA Projects (4 phases):**
-    - **PLAN:** Problem Definition, Current Situation, Action Planning, KPIs
-    - **DO:** Implementation, Testing, Data Collection, Documentation
-    - **CHECK:** Results Analysis, KPI Review, Gap Analysis, Lessons Learned
-    - **ACT:** Standardization, Continuous Improvement, Documentation, Training
-    
-    **PDSA Projects (4 phases):**
-    - **PLAN:** Hypothesis, Prediction, Data Collection Plan, Test Design
-    - **DO:** Small-scale Testing, Observation, Data Recording
-    - **STUDY:** Data Analysis, Learning, Comparison with Prediction
-    - **ACT:** Adopt/Adapt/Abandon, Scale-up, Next Cycle Planning
+    **PDCA/PDSA Projects:** Đang được cập nhật
     
     #### 💬 Cộng tác
     - Team comments và discussions
     - Activity tracking
     - Meeting minutes
-    - @mentions cho team members
     
     #### ✍️ Ký tên
     - Thêm thông tin người ký duyệt
@@ -1212,7 +1203,7 @@ def render_user_guide():
     
     1. **Tạo Phòng/Ban trước**: Nên tạo danh sách phòng/ban trước khi thêm dự án
     2. **Chọn Methodology**: Chọn đúng phương pháp (DMAIC/PDCA/PDSA) khi tạo dự án
-    3. **Methodology Tracking**: Sử dụng tab tracking phù hợp với phương pháp đã chọn
+    3. **DMAIC Tools**: Sử dụng tab DMAIC Tracking để ghi nhận chi tiết
     4. **Cập nhật tiến độ**: Thường xuyên cập nhật tiến độ để theo dõi dự án hiệu quả
     5. **Sao lưu dữ liệu**: Export dữ liệu định kỳ để backup
     
@@ -1232,9 +1223,13 @@ def main():
     
     # Initialize collaboration features
     if 'collaboration_initialized' not in st.session_state:
-        collaboration_components = initialize_collaboration(db, enable_scheduler=False)
-        st.session_state['collaboration_initialized'] = True
-        st.session_state['collaboration_components'] = collaboration_components
+        try:
+            collaboration_components = initialize_collaboration(db, enable_scheduler=False)
+            st.session_state['collaboration_initialized'] = True
+            st.session_state['collaboration_components'] = collaboration_components
+        except Exception as e:
+            st.session_state['collaboration_initialized'] = False
+            # Silently fail - collaboration tab will show error message
     
     # Render nội dung theo menu
     if selected_menu == "🏠 Trang chủ":
