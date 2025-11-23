@@ -1,313 +1,201 @@
-"""
-╔══════════════════════════════════════════════════════════════════════════╗
-║                                                                          ║
-║              📋 READY-TO-COPY CODE SNIPPETS 📋                          ║
-║                                                                          ║
-║              Copy & Paste trực tiếp vào app.py của bạn                  ║
-║                                                                          ║
-╚══════════════════════════════════════════════════════════════════════════╝
-"""
+import streamlit as st
+import pandas as pd
+from datetime import datetime, date
+import io
+import json
+import tempfile
+import os
 
-# ==================== SNIPPET 1: FOR render_add_project() ====================
-# Vị trí: SAU dòng budget = st.number_input(...)
-# Copy toàn bộ đoạn code từ đây:
+# Import các modules
+from database import ProjectDatabase
+from dmaic_tools import DMAICTools
+from pdca_pdsa_tools import PDCATools  # ← THÊM MỚI: Import PDCATools
+from collaboration import render_collaboration_tab, initialize_collaboration
+from gantt_chart import (
+    create_gantt_chart, create_dmaic_gantt, 
+    get_project_progress, get_phase_summary, 
+    check_overdue_tasks
+)
+from export_pdf import create_project_pdf
+from dashboard import (
+    create_status_chart, create_category_chart, 
+    create_department_chart, create_budget_chart,
+    create_overview_dashboard, create_metrics_cards,
+    create_heatmap, create_funnel_chart
+)
 
-        # ==================== METHODOLOGY SELECTION ====================
-        st.write("---")
-        st.write("### 🔧 Phương pháp Cải tiến")
+# Cấu hình trang
+st.set_page_config(
+    page_title="Quản lý Dự án Lean Six Sigma",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# CSS tùy chỉnh
+st.markdown("""
+    <style>
+    .main-header {
+        font-size: 2.5rem;
+        color: #1f4788;
+        text-align: center;
+        padding: 1rem 0;
+        border-bottom: 3px solid #2e5c8a;
+        margin-bottom: 2rem;
+    }
+    .metric-card {
+        background-color: #f0f8ff;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border-left: 4px solid #1f4788;
+    }
+    .stButton>button {
+        width: 100%;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Khởi tạo database
+def init_db():
+    return ProjectDatabase()
+
+db = init_db()
+
+# Danh mục dự án Lean
+LEAN_CATEGORIES = [
+    "(1) An toàn người bệnh",
+    "(2) Hướng đến Hài lòng cho người bệnh",
+    "(3) Hướng đến hài lòng cho nhân viên",
+    "(4) Nâng cao chất lượng chuyên môn",
+    "(5) Bệnh viện thông minh"
+]
+
+# Trạng thái dự án
+PROJECT_STATUS = [
+    "Lên kế hoạch",
+    "Đang thực hiện",
+    "Tạm dừng",
+    "Hoàn thành",
+    "Hủy bỏ"
+]
+
+# DMAIC Phases
+DMAIC_PHASES = ["Define", "Measure", "Analyze", "Improve", "Control"]
+
+# ==================== SIDEBAR ====================
+def render_sidebar():
+    with st.sidebar:
+        st.image("https://via.placeholder.com/200x80/1f4788/FFFFFF?text=Lean+Six+Sigma", width=200)
         
-        col_method1, col_method2 = st.columns([3, 1])
+        st.markdown("---")
         
-        with col_method1:
-            methodology = st.selectbox(
-                "Chọn Methodology *",
-                ["DMAIC", "PDCA", "PDSA"],
-                index=0,
-                help="""
-                • DMAIC: Define → Measure → Analyze → Improve → Control (Six Sigma)
-                • PDCA: Plan → Do → Check → Act (Deming Cycle)
-                • PDSA: Plan → Do → Study → Act (Quality Improvement)
-                """
-            )
+        menu = st.radio(
+            "📋 MENU CHÍNH",
+            [
+                "🏠 Trang chủ",
+                "➕ Thêm dự án mới",
+                "📝 Quản lý dự án",
+                "📊 Dashboard & Thống kê",
+                "🏢 Quản lý Phòng/Ban",
+                "📤 Import/Export",
+                "❓ Hướng dẫn sử dụng"
+            ]
+        )
         
-        with col_method2:
-            methodology_icons = {
-                'DMAIC': '🔵',
-                'PDCA': '🟢',
-                'PDSA': '🟡'
-            }
-            st.markdown(f"### {methodology_icons.get(methodology, '⚪')} {methodology}")
+        st.markdown("---")
+        st.info("💡 **Gợi ý**: Sử dụng menu bên trái để điều hướng")
         
-        # Info expander
-        methodology_info = {
-            'DMAIC': {
-                'name': 'DMAIC - Six Sigma',
-                'phases': '5 phases: Define → Measure → Analyze → Improve → Control',
-                'best_for': '✅ Dự án phức tạp, cần phân tích dữ liệu chi tiết',
-                'example': 'Ví dụ: Giảm thời gian chờ khám từ 60 phút xuống 30 phút'
-            },
-            'PDCA': {
-                'name': 'PDCA - Deming Cycle',
-                'phases': '4 phases: Plan → Do → Check → Act',
-                'best_for': '✅ Cải tiến quy trình, tiêu chuẩn hóa công việc',
-                'example': 'Ví dụ: Triển khai quy trình rửa tay 5 bước'
-            },
-            'PDSA': {
-                'name': 'PDSA - Quality Improvement',
-                'phases': '4 phases: Plan → Do → Study → Act',
-                'best_for': '✅ Đổi mới sáng tạo, học hỏi từ thử nghiệm',
-                'example': 'Ví dụ: Pilot chương trình giáo dục bệnh nhân tiểu đường'
-            }
-        }
+        return menu
+
+# ==================== TRANG CHỦ ====================
+def render_home():
+    st.markdown('<h1 class="main-header">🏥 HỆ THỐNG QUẢN LÝ DỰ ÁN LEAN SIX SIGMA</h1>', unsafe_allow_html=True)
+    
+    # Thống kê tổng quan
+    stats = db.get_statistics()
+    metrics = create_metrics_cards(stats)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            label="📁 Tổng số dự án",
+            value=metrics['total_projects']
+        )
+    
+    with col2:
+        st.metric(
+            label="💰 Tổng ngân sách",
+            value=f"{metrics['total_budget']:,.0f} VNĐ"
+        )
+    
+    with col3:
+        st.metric(
+            label="💸 Tổng chi phí",
+            value=f"{metrics['total_cost']:,.0f} VNĐ"
+        )
+    
+    with col4:
+        st.metric(
+            label="📊 Tỷ lệ sử dụng ngân sách",
+            value=f"{metrics['budget_utilization']}%"
+        )
+    
+    st.markdown("---")
+    
+    # Danh sách dự án gần đây
+    st.subheader("📋 Dự án gần đây")
+    
+    projects = db.get_all_projects()
+    
+    if not projects.empty:
+        # Hiển thị top 10 dự án mới nhất
+        recent_projects = projects.head(10)
         
-        info = methodology_info[methodology]
+        display_df = recent_projects[['project_code', 'project_name', 'methodology', 'department', 
+                                       'category', 'status', 'start_date', 'end_date']]
+        display_df.columns = ['Mã dự án', 'Tên dự án', 'Phương pháp', 'Phòng/Ban', 
+                              'Danh mục', 'Trạng thái', 'Ngày bắt đầu', 'Ngày kết thúc']
         
-        with st.expander(f"ℹ️ Tìm hiểu về {methodology}"):
-            st.write(f"**{info['name']}**")
-            st.write(f"📊 {info['phases']}")
-            st.write(f"{info['best_for']}")
-            st.write(f"💡 {info['example']}")
-        # ==================== END METHODOLOGY SELECTION ====================
+        st.dataframe(display_df, use_container_width=True)
+    else:
+        st.info("Chưa có dự án nào. Hãy thêm dự án mới!")
 
-# Đến đây! Paste vào app.py
-
-
-# ==================== SNIPPET 2: FOR project_data dict ====================
-# Vị trí: Trong render_add_project(), khi tạo project_data
-# TÌM dòng có 'budget': budget,
-# THÊM dòng này NGAY SAU nó:
-
-                    'methodology': methodology,
-
-# Ví dụ đầy đủ:
-"""
-                project_data = {
-                    'project_code': project_code,
-                    'project_name': project_name,
-                    'department': department,
-                    'category': category,
-                    'status': status,
-                    'start_date': str(start_date),
-                    'end_date': str(end_date),
-                    'budget': budget,
-                    'methodology': methodology,  # ⬅️ THÊM DÒNG NÀY
-                    'description': description,
-                    'problem_statement': problem_statement,
-                    'goal': goal,
-                    'scope': scope,
-                    'actual_cost': 0
-                }
-"""
-
-
-# ==================== SNIPPET 3: FOR render_project_info() - EDIT FORM ====================
-# Vị trí: Trong render_project_info(), sau dropdown category
-# Copy toàn bộ đoạn code từ đây:
-
-            # Methodology selection
-            current_methodology = project.get('methodology', 'DMAIC')
-            methodology_options = ['DMAIC', 'PDCA', 'PDSA']
-            methodology_index = methodology_options.index(current_methodology) if current_methodology in methodology_options else 0
-            
-            methodology = st.selectbox(
-                "Phương pháp",
-                methodology_options,
-                index=methodology_index
-            )
-
-# Đến đây! Paste vào app.py
-
-
-# ==================== SNIPPET 4: FOR updated_data dict ====================
-# Vị trí: Trong render_project_info(), khi update project
-# TÌM dòng có 'budget': budget,
-# THÊM dòng này NGAY SAU nó:
-
-                'methodology': methodology,
-
-# Ví dụ đầy đủ:
-"""
-            updated_data = {
-                'project_name': project_name,
-                'department': department,
-                'category': category,
-                'status': status,
-                'start_date': str(start_date),
-                'end_date': str(end_date),
-                'budget': budget,
-                'methodology': methodology,  # ⬅️ THÊM DÒNG NÀY
-                'description': description,
-                'problem_statement': problem_statement,
-                'goal': goal,
-                'scope': scope
-            }
-"""
-
-
-# ==================== VISUAL GUIDE ====================
-"""
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        TRƯỚC KHI THÊM CODE                              │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│   with col2:                                                            │
-│       status = st.selectbox("Trạng thái *", PROJECT_STATUS)            │
-│       start_date = st.date_input("Ngày bắt đầu *", ...)                │
-│       end_date = st.date_input("Ngày kết thúc *", ...)                 │
-│       budget = st.number_input("Ngân sách (VNĐ)", ...)                 │
-│                                                                         │
-│   # ⬇️⬇️⬇️ THÊM SNIPPET 1 VÀO ĐÂY ⬇️⬇️⬇️                               │
-│                                                                         │
-│   st.write("---")                                                       │
-│   st.write("### 2. Mô tả dự án")                                       │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         SAU KHI THÊM CODE                               │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│   with col2:                                                            │
-│       status = st.selectbox("Trạng thái *", PROJECT_STATUS)            │
-│       start_date = st.date_input("Ngày bắt đầu *", ...)                │
-│       end_date = st.date_input("Ngày kết thúc *", ...)                 │
-│       budget = st.number_input("Ngân sách (VNĐ)", ...)                 │
-│                                                                         │
-│   # ==================== METHODOLOGY SELECTION ====================    │
-│   st.write("---")                                                       │
-│   st.write("### 🔧 Phương pháp Cải tiến")                              │
-│                                                                         │
-│   col_method1, col_method2 = st.columns([3, 1])                        │
-│                                                                         │
-│   with col_method1:                                                     │
-│       methodology = st.selectbox(                                       │
-│           "Chọn Methodology *",                                         │
-│           ["DMAIC", "PDCA", "PDSA"],                                   │
-│           index=0                                                       │
-│       )                                                                 │
-│                                                                         │
-│   with col_method2:                                                     │
-│       st.markdown(f"### {icon} {methodology}")                         │
-│                                                                         │
-│   # ... methodology info expander ...                                  │
-│   # ==================== END METHODOLOGY ====================          │
-│                                                                         │
-│   st.write("---")                                                       │
-│   st.write("### 2. Mô tả dự án")                                       │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-"""
-
-
-# ==================== QUICK CHECKLIST ====================
-"""
-□ STEP 1: Copy SNIPPET 1 → Paste sau dòng budget trong render_add_project()
-
-□ STEP 2: Copy SNIPPET 2 → Add 'methodology': methodology vào project_data
-
-□ STEP 3: Copy SNIPPET 3 → Paste sau dropdown category trong render_project_info()
-
-□ STEP 4: Copy SNIPPET 4 → Add 'methodology': methodology vào updated_data
-
-□ STEP 5: Save file
-
-□ STEP 6: Git commit & push
-
-□ STEP 7: Test!
-"""
-
-
-# ==================== COMPLETE EXAMPLE ====================
-# Đây là VÍ DỤ HOÀN CHỈNH của render_add_project() sau khi thêm code:
-
-def render_add_project_EXAMPLE():
-    """Complete example - FOR REFERENCE ONLY"""
-    st.subheader("➕ Thêm Dự Án Mới")
+# ==================== THÊM DỰ ÁN MỚI ====================
+def render_add_project():
+    st.header("➕ Thêm Dự án Mới")
     
     with st.form("add_project_form"):
-        st.write("### 1. Thông tin chung")
+        st.subheader("1. Thông tin chung")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            # Generate project code
-            all_projects = db.get_all_projects()
-            if len(all_projects) > 0:
-                last_code = all_projects['project_code'].iloc[0]
-                try:
-                    num = int(last_code.split('-')[2]) + 1
-                    project_code = f"LSS-2024-{num:03d}"
-                except:
-                    project_code = "LSS-2024-001"
-            else:
-                project_code = "LSS-2024-001"
+            project_code = st.text_input("Mã dự án *", placeholder="LSS-2024-001")
+            project_name = st.text_input("Tên dự án *", placeholder="Tên dự án")
             
-            project_code = st.text_input("Mã dự án *", value=project_code)
-            project_name = st.text_input("Tên dự án *")
-            
+            # Lấy danh sách phòng ban
             departments = db.get_departments()
-            dept_list = departments['name'].tolist() if not departments.empty else []
-            department = st.selectbox("Phòng/Ban *", dept_list)
+            dept_list = [""] + departments['name'].tolist() if not departments.empty else [""]
             
-            category = st.selectbox("Danh mục *", LEAN_CATEGORIES)
+            department = st.selectbox("Phòng/Ban *", dept_list)
+            category = st.selectbox("Danh mục *", [""] + LEAN_CATEGORIES)
         
         with col2:
-            status = st.selectbox("Trạng thái *", PROJECT_STATUS)
-            start_date = st.date_input("Ngày bắt đầu *", value=date.today())
-            end_date = st.date_input("Ngày kết thúc *", value=date.today())
-            budget = st.number_input("Ngân sách (VNĐ)", min_value=0, value=0)
-        
-        # ⬇️⬇️⬇️ SNIPPET 1 STARTS HERE ⬇️⬇️⬇️
-        st.write("---")
-        st.write("### 🔧 Phương pháp Cải tiến")
-        
-        col_method1, col_method2 = st.columns([3, 1])
-        
-        with col_method1:
+            # Methodology selector
             methodology = st.selectbox(
-                "Chọn Methodology *",
+                "Phương pháp cải tiến *",
                 ["DMAIC", "PDCA", "PDSA"],
                 index=0,
-                help="Chọn phương pháp cải tiến phù hợp"
+                help="Chọn phương pháp Lean Six Sigma cho dự án này"
             )
+            
+            status = st.selectbox("Trạng thái *", PROJECT_STATUS)
+            start_date = st.date_input("Ngày bắt đầu *")
+            end_date = st.date_input("Ngày kết thúc *")
+            budget = st.number_input("Ngân sách (VNĐ)", min_value=0, value=0, step=1000000)
         
-        with col_method2:
-            methodology_icons = {
-                'DMAIC': '🔵',
-                'PDCA': '🟢',
-                'PDSA': '🟡'
-            }
-            st.markdown(f"### {methodology_icons.get(methodology, '⚪')} {methodology}")
-        
-        methodology_info = {
-            'DMAIC': {
-                'name': 'DMAIC - Six Sigma',
-                'phases': '5 phases: Define → Measure → Analyze → Improve → Control',
-                'best_for': '✅ Dự án phức tạp, cần phân tích dữ liệu chi tiết'
-            },
-            'PDCA': {
-                'name': 'PDCA - Deming Cycle',
-                'phases': '4 phases: Plan → Do → Check → Act',
-                'best_for': '✅ Cải tiến quy trình, tiêu chuẩn hóa'
-            },
-            'PDSA': {
-                'name': 'PDSA - Quality Improvement',
-                'phases': '4 phases: Plan → Do → Study → Act',
-                'best_for': '✅ Đổi mới sáng tạo, học hỏi từ thử nghiệm'
-            }
-        }
-        
-        info = methodology_info[methodology]
-        
-        with st.expander(f"ℹ️ Tìm hiểu về {methodology}"):
-            st.write(f"**{info['name']}**")
-            st.write(f"📊 {info['phases']}")
-            st.write(f"{info['best_for']}")
-        # ⬆️⬆️⬆️ SNIPPET 1 ENDS HERE ⬆️⬆️⬆️
-        
-        st.write("---")
-        st.write("### 2. Mô tả dự án")
+        st.subheader("2. Mô tả dự án")
         
         description = st.text_area("Mô tả chung", placeholder="Mô tả ngắn gọn về dự án")
         problem_statement = st.text_area("Mô tả vấn đề", placeholder="Vấn đề cần giải quyết")
@@ -320,43 +208,1055 @@ def render_add_project_EXAMPLE():
             if not project_code or not project_name or not department or not category:
                 st.error("⚠️ Vui lòng điền đầy đủ các trường bắt buộc (*)")
             else:
+                project_data = {
+                    'project_code': project_code,
+                    'project_name': project_name,
+                    'department': department,
+                    'category': category,
+                    'methodology': methodology,
+                    'status': status,
+                    'start_date': start_date.isoformat(),
+                    'end_date': end_date.isoformat(),
+                    'budget': budget,
+                    'actual_cost': 0,
+                    'description': description,
+                    'problem_statement': problem_statement,
+                    'goal': goal,
+                    'scope': scope
+                }
+                
                 try:
-                    # ⬇️⬇️⬇️ SNIPPET 2 IS HERE ⬇️⬇️⬇️
-                    project_data = {
-                        'project_code': project_code,
-                        'project_name': project_name,
-                        'department': department,
-                        'category': category,
-                        'status': status,
-                        'start_date': str(start_date),
-                        'end_date': str(end_date),
-                        'budget': budget,
-                        'methodology': methodology,  # ⬅️ SNIPPET 2
-                        'description': description,
-                        'problem_statement': problem_statement,
-                        'goal': goal,
-                        'scope': scope,
-                        'actual_cost': 0
-                    }
-                    # ⬆️⬆️⬆️ SNIPPET 2 ENDS HERE ⬆️⬆️⬆️
-                    
                     project_id = db.add_project(project_data)
-                    st.success(f"✅ Đã tạo dự án {project_code} với phương pháp {methodology}!")
+                    st.success(f"✅ Đã thêm dự án thành công! ID: {project_id}")
                     st.balloons()
+                except Exception as e:
+                    st.error(f"❌ Lỗi: {str(e)}")
+
+# ==================== QUẢN LÝ DỰ ÁN ====================
+def render_manage_projects():
+    st.header("📝 Quản lý Dự án")
+    
+    projects = db.get_all_projects()
+    
+    if projects.empty:
+        st.warning("Chưa có dự án nào. Hãy thêm dự án mới!")
+        return
+    
+    # Chọn dự án
+    project_options = {f"{row['project_code']} - {row['project_name']}": row['id'] 
+                       for _, row in projects.iterrows()}
+    
+    selected_project_name = st.selectbox(
+        "Chọn dự án để quản lý:",
+        options=list(project_options.keys())
+    )
+    
+    if selected_project_name:
+        project_id = project_options[selected_project_name]
+        project = db.get_project(project_id)
+        
+        if project:
+            # Tabs
+            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+                "📄 Thông tin", 
+                "👥 Thành viên", 
+                "🤝 Stakeholders",
+                "📅 Kế hoạch (Gantt)",
+                "🔄 Methodology Tracking",  # ← ĐỔI TÊN TAB
+                "💬 Cộng tác",
+                "✍️ Ký tên",
+                "📤 Xuất báo cáo"
+            ])
+            
+            # Tab 1: Thông tin dự án
+            with tab1:
+                render_project_info(project_id, project)
+            
+            # Tab 2: Thành viên
+            with tab2:
+                render_team_members(project_id)
+            
+            # Tab 3: Stakeholders
+            with tab3:
+                render_stakeholders(project_id)
+            
+            # Tab 4: Kế hoạch Gantt
+            with tab4:
+                render_gantt_plan(project_id)
+            
+            # Tab 5: METHODOLOGY TRACKING (UPDATED!)
+            with tab5:
+                render_methodology_tracking(project_id, project, db)
+            
+            # Tab 6: CỘNG TÁC
+            with tab6:
+                current_user = st.session_state.get('user_name', 'Current User')
+                render_collaboration_tab(
+                    project_id=project_id,
+                    project=project,
+                    database=db,
+                    current_user=current_user
+                )
+            
+            # Tab 7: Ký tên
+            with tab7:
+                render_signoffs(project_id)
+            
+            # Tab 8: Xuất báo cáo
+            with tab8:
+                render_export_report(project_id, project)
+
+# ==================== METHODOLOGY TRACKING (UPDATED FUNCTION!) ====================
+def render_methodology_tracking(project_id, project, database):
+    """
+    Render methodology tracking interface
+    Supports DMAIC, PDCA, and PDSA methodologies
+    """
+    # Get project methodology
+    methodology = project.get('methodology', 'DMAIC')
+    
+    # Display header
+    st.write(f"### 🔧 {methodology} Tracking")
+    
+    # Methodology info badge
+    methodology_info_data = {
+        'DMAIC': {'icon': '🔵', 'phases': '5 phases', 'color': 'blue'},
+        'PDCA': {'icon': '🟢', 'phases': '4 phases', 'color': 'green'},
+        'PDSA': {'icon': '🟡', 'phases': '4 phases', 'color': 'orange'}
+    }
+    
+    info = methodology_info_data.get(methodology, {'icon': '⚪', 'phases': 'Unknown', 'color': 'gray'})
+    st.info(f"{info['icon']} **{methodology}** - {info['phases']}")
+    
+    # Render appropriate tracking interface
+    if methodology == 'DMAIC':
+        # ========== DMAIC TRACKING ==========
+        dmaic_tools = DMAICTools(database)
+        
+        # Create DMAIC tabs
+        dmaic_tabs = st.tabs([
+            "1️⃣ Define",
+            "2️⃣ Measure",
+            "3️⃣ Analyze",
+            "4️⃣ Improve",
+            "5️⃣ Control"
+        ])
+        
+        # Render each DMAIC phase
+        with dmaic_tabs[0]:
+            dmaic_tools.render_define_tab(project_id)
+        with dmaic_tabs[1]:
+            dmaic_tools.render_measure_tab(project_id)
+        with dmaic_tabs[2]:
+            dmaic_tools.render_analyze_tab(project_id)
+        with dmaic_tabs[3]:
+            dmaic_tools.render_improve_tab(project_id)
+        with dmaic_tabs[4]:
+            dmaic_tools.render_control_tab(project_id)
+    
+    elif methodology in ['PDCA', 'PDSA']:
+        # ========== PDCA/PDSA TRACKING ==========
+        pdca_tools = PDCATools(database)
+        pdca_tools.render_pdca_interface(project_id, methodology)
+    
+    else:
+        # ========== INVALID METHODOLOGY ==========
+        st.error(f"❌ Methodology không hợp lệ: {methodology}")
+        st.info("""
+        **Methodology hợp lệ:**
+        - DMAIC (Define-Measure-Analyze-Improve-Control)
+        - PDCA (Plan-Do-Check-Act)
+        - PDSA (Plan-Do-Study-Act)
+        
+        Vui lòng cập nhật methodology trong thông tin dự án.
+        """)
+        
+        # Option to update methodology
+        with st.expander("🔧 Cập nhật Methodology"):
+            new_methodology = st.selectbox(
+                "Chọn Methodology mới",
+                ['DMAIC', 'PDCA', 'PDSA'],
+                key=f"update_methodology_{project_id}"
+            )
+            
+            if st.button("💾 Lưu Methodology", key=f"save_methodology_{project_id}"):
+                try:
+                    database.update_project(project_id, {'methodology': new_methodology})
+                    st.success(f"✅ Đã cập nhật methodology thành {new_methodology}!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Lỗi: {str(e)}")
+
+def render_project_info(project_id, project):
+    st.subheader("Thông tin Dự án")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        with st.form(f"edit_project_{project_id}"):
+            project_name = st.text_input("Tên dự án", value=project.get('project_name', ''))
+            
+            departments = db.get_departments()
+            dept_list = departments['name'].tolist() if not departments.empty else []
+            current_dept = project.get('department', '')
+            dept_index = dept_list.index(current_dept) if current_dept in dept_list else 0
+            
+            department = st.selectbox("Phòng/Ban", dept_list, index=dept_index)
+            
+            current_cat = project.get('category', '')
+            cat_index = LEAN_CATEGORIES.index(current_cat) if current_cat in LEAN_CATEGORIES else 0
+            category = st.selectbox("Danh mục", LEAN_CATEGORIES, index=cat_index)
+            
+            # Methodology selector trong edit form
+            methodology_list = ["DMAIC", "PDCA", "PDSA"]
+            current_methodology = project.get('methodology', 'DMAIC')
+            methodology_index = methodology_list.index(current_methodology) if current_methodology in methodology_list else 0
+            methodology = st.selectbox("Phương pháp cải tiến", methodology_list, index=methodology_index)
+            
+            current_status = project.get('status', 'Lên kế hoạch')
+            status_index = PROJECT_STATUS.index(current_status) if current_status in PROJECT_STATUS else 0
+            status = st.selectbox("Trạng thái", PROJECT_STATUS, index=status_index)
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                start_date = st.date_input("Ngày bắt đầu", 
+                    value=pd.to_datetime(project.get('start_date')).date() if project.get('start_date') else date.today())
+            with col_b:
+                end_date = st.date_input("Ngày kết thúc",
+                    value=pd.to_datetime(project.get('end_date')).date() if project.get('end_date') else date.today())
+            
+            budget = st.number_input("Ngân sách (VNĐ)", value=int(project.get('budget', 0)), step=1000000)
+            actual_cost = st.number_input("Chi phí thực tế (VNĐ)", value=int(project.get('actual_cost', 0)), step=1000000)
+            
+            description = st.text_area("Mô tả", value=project.get('description', ''))
+            problem_statement = st.text_area("Mô tả vấn đề", value=project.get('problem_statement', ''))
+            goal = st.text_area("Mục tiêu", value=project.get('goal', ''))
+            scope = st.text_area("Phạm vi", value=project.get('scope', ''))
+            
+            col_save, col_delete = st.columns([3, 1])
+            
+            with col_save:
+                submitted = st.form_submit_button("💾 Cập nhật", type="primary")
+            
+            with col_delete:
+                delete = st.form_submit_button("🗑️ Xóa", type="secondary")
+            
+            if submitted:
+                update_data = {
+                    'project_name': project_name,
+                    'department': department,
+                    'category': category,
+                    'methodology': methodology,
+                    'status': status,
+                    'start_date': start_date.isoformat(),
+                    'end_date': end_date.isoformat(),
+                    'budget': budget,
+                    'actual_cost': actual_cost,
+                    'description': description,
+                    'problem_statement': problem_statement,
+                    'goal': goal,
+                    'scope': scope
+                }
+                
+                db.update_project(project_id, update_data)
+                st.success("✅ Đã cập nhật thông tin dự án!")
+                st.rerun()
+            
+            if delete:
+                if st.session_state.get(f'confirm_delete_{project_id}'):
+                    db.delete_project(project_id)
+                    st.success("✅ Đã xóa dự án!")
+                    st.rerun()
+                else:
+                    st.session_state[f'confirm_delete_{project_id}'] = True
+                    st.warning("⚠️ Nhấn lại nút Xóa để xác nhận!")
+    
+    with col2:
+        # Hiển thị methodology
+        methodology_icons = {
+            'DMAIC': '🔵',
+            'PDCA': '🟢',
+            'PDSA': '🟡'
+        }
+        methodology = project.get('methodology', 'DMAIC')
+        
+        st.info(f"""
+        **Mã dự án:** {project.get('project_code', 'N/A')}
+        
+        {methodology_icons.get(methodology, '⚪')} **Phương pháp:** {methodology}
+        
+        **Ngày tạo:** {pd.to_datetime(project.get('created_at')).strftime('%d/%m/%Y %H:%M') if project.get('created_at') else 'N/A'}
+        
+        **Cập nhật lần cuối:** {pd.to_datetime(project.get('updated_at')).strftime('%d/%m/%Y %H:%M') if project.get('updated_at') else 'N/A'}
+        """)
+
+def render_team_members(project_id):
+    st.subheader("Danh sách Thành viên")
+    
+    members = db.get_team_members(project_id)
+    
+    # Hiển thị danh sách
+    if not members.empty:
+        for _, member in members.iterrows():
+            with st.expander(f"👤 {member['name']} - {member.get('role', 'N/A')}"):
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.write(f"**Vai trò:** {member.get('role', 'N/A')}")
+                    st.write(f"**Phòng/Ban:** {member.get('department', 'N/A')}")
+                    st.write(f"**Email:** {member.get('email', 'N/A')}")
+                    st.write(f"**Điện thoại:** {member.get('phone', 'N/A')}")
+                
+                with col2:
+                    if st.button("🗑️ Xóa", key=f"del_member_{member['id']}"):
+                        db.delete_team_member(member['id'])
+                        st.success("✅ Đã xóa thành viên!")
+                        st.rerun()
+    else:
+        st.info("Chưa có thành viên nào.")
+    
+    # Form thêm thành viên mới
+    st.markdown("---")
+    st.subheader("➕ Thêm thành viên mới")
+    
+    with st.form(f"add_member_{project_id}"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            name = st.text_input("Họ tên *")
+            role = st.text_input("Vai trò *", placeholder="VD: Trưởng nhóm, Thành viên...")
+        
+        with col2:
+            departments = db.get_departments()
+            dept_list = [""] + departments['name'].tolist() if not departments.empty else [""]
+            department = st.selectbox("Phòng/Ban", dept_list)
+            
+            email = st.text_input("Email")
+        
+        phone = st.text_input("Điện thoại")
+        
+        submitted = st.form_submit_button("💾 Thêm thành viên", type="primary")
+        
+        if submitted:
+            if not name or not role:
+                st.error("⚠️ Vui lòng điền họ tên và vai trò!")
+            else:
+                member_data = {
+                    'project_id': project_id,
+                    'name': name,
+                    'role': role,
+                    'department': department,
+                    'email': email,
+                    'phone': phone
+                }
+                
+                db.add_team_member(member_data)
+                st.success("✅ Đã thêm thành viên!")
+                st.rerun()
+
+def render_stakeholders(project_id):
+    st.subheader("Danh sách Stakeholders")
+    
+    stakeholders = db.get_stakeholders(project_id)
+    
+    # Hiển thị danh sách
+    if not stakeholders.empty:
+        for _, stake in stakeholders.iterrows():
+            with st.expander(f"🤝 {stake['name']} - {stake.get('role', 'N/A')}"):
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.write(f"**Vai trò:** {stake.get('role', 'N/A')}")
+                    st.write(f"**Phòng/Ban:** {stake.get('department', 'N/A')}")
+                    st.write(f"**Mức độ ảnh hưởng:** {stake.get('impact_level', 'N/A')}")
+                    st.write(f"**Mức độ tham gia:** {stake.get('engagement_level', 'N/A')}")
+                
+                with col2:
+                    if st.button("🗑️ Xóa", key=f"del_stake_{stake['id']}"):
+                        db.delete_stakeholder(stake['id'])
+                        st.success("✅ Đã xóa stakeholder!")
+                        st.rerun()
+    else:
+        st.info("Chưa có stakeholder nào.")
+    
+    # Form thêm stakeholder mới
+    st.markdown("---")
+    st.subheader("➕ Thêm Stakeholder mới")
+    
+    with st.form(f"add_stake_{project_id}"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            name = st.text_input("Họ tên *")
+            role = st.text_input("Vai trò *")
+            
+            departments = db.get_departments()
+            dept_list = [""] + departments['name'].tolist() if not departments.empty else [""]
+            department = st.selectbox("Phòng/Ban", dept_list)
+        
+        with col2:
+            impact_level = st.selectbox("Mức độ ảnh hưởng", 
+                ["", "Thấp", "Trung bình", "Cao", "Rất cao"])
+            engagement_level = st.selectbox("Mức độ tham gia",
+                ["", "Ít", "Vừa phải", "Tích cực", "Rất tích cực"])
+        
+        submitted = st.form_submit_button("💾 Thêm Stakeholder", type="primary")
+        
+        if submitted:
+            if not name or not role:
+                st.error("⚠️ Vui lòng điền họ tên và vai trò!")
+            else:
+                stake_data = {
+                    'project_id': project_id,
+                    'name': name,
+                    'role': role,
+                    'department': department,
+                    'impact_level': impact_level,
+                    'engagement_level': engagement_level
+                }
+                
+                db.add_stakeholder(stake_data)
+                st.success("✅ Đã thêm stakeholder!")
+                st.rerun()
+
+def render_gantt_plan(project_id):
+    st.subheader("📅 Kế hoạch Chi tiết - Gantt Chart")
+    
+    # Lấy methodology từ project
+    project = db.get_project(project_id)
+    methodology = project.get('methodology', 'DMAIC') if project else 'DMAIC'
+    
+    # Define phases cho từng methodology
+    METHODOLOGY_PHASES = {
+        'DMAIC': ["Define", "Measure", "Analyze", "Improve", "Control"],
+        'PDCA': ["Plan", "Do", "Check", "Act"],
+        'PDSA': ["Plan", "Do", "Study", "Act"]
+    }
+    
+    phases = METHODOLOGY_PHASES.get(methodology, METHODOLOGY_PHASES['DMAIC'])
+    
+    # Hiển thị methodology hiện tại
+    methodology_icons = {
+        'DMAIC': '🔵',
+        'PDCA': '🟢',
+        'PDSA': '🟡'
+    }
+    st.info(f"{methodology_icons.get(methodology, '⚪')} **Phương pháp:** {methodology} ({len(phases)} phases)")
+    
+    tasks = db.get_tasks(project_id)
+    
+    # Hiển thị Gantt Chart
+    if not tasks.empty:
+        # Tiến độ tổng thể
+        progress = get_project_progress(tasks)
+        st.metric("Tiến độ tổng thể", f"{progress}%")
+        
+        # Chọn loại biểu đồ
+        chart_type = st.radio("Chọn kiểu hiển thị:", 
+            ["Gantt Chart cơ bản", "DMAIC Gantt"], horizontal=True)
+        
+        if chart_type == "DMAIC Gantt" and methodology == 'DMAIC':
+            fig = create_dmaic_gantt(tasks)
+        else:
+            fig = create_gantt_chart(tasks)
+        
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Tóm tắt theo phase
+        st.subheader("📊 Tóm tắt theo Phase")
+        phase_summary = get_phase_summary(tasks)
+        if not phase_summary.empty:
+            st.dataframe(phase_summary, use_container_width=True)
+        
+        # Tasks quá hạn
+        overdue = check_overdue_tasks(tasks)
+        if not overdue.empty:
+            st.warning(f"⚠️ Có {len(overdue)} công việc quá hạn!")
+            st.dataframe(overdue, use_container_width=True)
+        
+        # Danh sách tasks
+        st.markdown("---")
+        st.subheader("Danh sách công việc")
+        
+        display_tasks = tasks[['phase', 'task_name', 'start_date', 'end_date', 
+                                'responsible', 'status', 'progress']]
+        display_tasks.columns = ['Phase', 'Công việc', 'Ngày bắt đầu', 'Ngày kết thúc',
+                                  'Người phụ trách', 'Trạng thái', 'Tiến độ (%)']
+        
+        st.dataframe(display_tasks, use_container_width=True)
+        
+    else:
+        st.info("Chưa có kế hoạch chi tiết.")
+    
+    # Form thêm task mới (dynamic phases)
+    st.markdown("---")
+    st.subheader("➕ Thêm công việc mới")
+    
+    with st.form(f"add_task_{project_id}"):
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Dynamic phase dropdown
+            phase = st.selectbox(
+                "Phase *", 
+                phases,
+                help=f"Chọn phase theo phương pháp {methodology}"
+            )
+            task_name = st.text_input("Tên công việc *")
+        
+        with col2:
+            start_date = st.date_input("Ngày bắt đầu *")
+            end_date = st.date_input("Ngày kết thúc *")
+        
+        with col3:
+            responsible = st.text_input("Người phụ trách")
+            status = st.selectbox("Trạng thái", 
+                ["Chưa bắt đầu", "Đang thực hiện", "Hoàn thành", "Tạm dừng"])
+            progress = st.slider("Tiến độ (%)", 0, 100, 0)
+        
+        submitted = st.form_submit_button("💾 Thêm công việc", type="primary")
+        
+        if submitted:
+            if not task_name:
+                st.error("⚠️ Vui lòng nhập tên công việc!")
+            else:
+                task_data = {
+                    'project_id': project_id,
+                    'phase': phase,
+                    'task_name': task_name,
+                    'start_date': start_date.isoformat(),
+                    'end_date': end_date.isoformat(),
+                    'responsible': responsible,
+                    'status': status,
+                    'progress': progress
+                }
+                
+                db.add_task(task_data)
+                st.success("✅ Đã thêm công việc!")
+                st.rerun()
+
+def render_signoffs(project_id):
+    st.subheader("✍️ Bảng Ký tên")
+    
+    signoffs = db.get_signoffs(project_id)
+    
+    # Hiển thị danh sách
+    if not signoffs.empty:
+        for _, sign in signoffs.iterrows():
+            with st.expander(f"✍️ {sign['role']} - {sign.get('name', 'Chưa ký')}"):
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.write(f"**Vai trò:** {sign.get('role', 'N/A')}")
+                    st.write(f"**Người ký:** {sign.get('name', 'Chưa ký')}")
+                    st.write(f"**Ngày ký:** {sign.get('date', 'N/A')}")
+                    st.write(f"**Ghi chú:** {sign.get('notes', 'N/A')}")
+                
+                with col2:
+                    if st.button("🗑️ Xóa", key=f"del_sign_{sign['id']}"):
+                        db.delete_signoff(sign['id'])
+                        st.success("✅ Đã xóa!")
+                        st.rerun()
+    else:
+        st.info("Chưa có thông tin ký tên.")
+    
+    # Form thêm signoff
+    st.markdown("---")
+    st.subheader("➕ Thêm người ký")
+    
+    with st.form(f"add_signoff_{project_id}"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            role = st.text_input("Vai trò/Chức vụ *", placeholder="VD: Trưởng khoa, Giám đốc...")
+            name = st.text_input("Họ tên người ký")
+        
+        with col2:
+            sign_date = st.date_input("Ngày ký")
+            notes = st.text_area("Ghi chú")
+        
+        submitted = st.form_submit_button("💾 Thêm", type="primary")
+        
+        if submitted:
+            if not role:
+                st.error("⚠️ Vui lòng nhập vai trò/chức vụ!")
+            else:
+                signoff_data = {
+                    'project_id': project_id,
+                    'role': role,
+                    'name': name,
+                    'date': sign_date.isoformat(),
+                    'notes': notes,
+                    'signature': ''
+                }
+                
+                db.add_signoff(signoff_data)
+                st.success("✅ Đã thêm!")
+                st.rerun()
+
+def render_export_report(project_id, project):
+    st.subheader("📤 Xuất Báo cáo")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    # Xuất PDF
+    with col1:
+        if st.button("📄 Xuất PDF", type="primary"):
+            with st.spinner("Đang tạo file PDF..."):
+                try:
+                    # Lấy dữ liệu
+                    team_members = db.get_team_members(project_id)
+                    stakeholders = db.get_stakeholders(project_id)
+                    tasks = db.get_tasks(project_id)
+                    signoffs = db.get_signoffs(project_id)
+                    
+                    # Tạo file PDF trong thư mục tạm
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+                        output_path = tmp_file.name
+                    
+                    create_project_pdf(project, team_members, stakeholders, 
+                                       tasks, signoffs, output_path)
+                    
+                    # Đọc file và tạo download button
+                    with open(output_path, 'rb') as f:
+                        pdf_bytes = f.read()
+                    
+                    # Xóa file tạm
+                    try:
+                        os.remove(output_path)
+                    except:
+                        pass
+                    
+                    st.download_button(
+                        label="⬇️ Tải xuống PDF",
+                        data=pdf_bytes,
+                        file_name=f"Project_{project['project_code']}.pdf",
+                        mime="application/pdf"
+                    )
+                    
+                    st.success("✅ Đã tạo file PDF!")
                     
                 except Exception as e:
-                    st.error(f"❌ Lỗi khi tạo dự án: {str(e)}")
+                    st.error(f"❌ Lỗi: {str(e)}")
+    
+    # Xuất Excel
+    with col2:
+        if st.button("📊 Xuất Excel", type="primary"):
+            try:
+                # Tạo Excel với nhiều sheets
+                output = io.BytesIO()
+                
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    # Sheet 1: Thông tin dự án
+                    project_df = pd.DataFrame([project])
+                    project_df.to_excel(writer, sheet_name='Thông tin dự án', index=False)
+                    
+                    # Sheet 2: Thành viên
+                    team_members = db.get_team_members(project_id)
+                    if not team_members.empty:
+                        team_members.to_excel(writer, sheet_name='Thành viên', index=False)
+                    
+                    # Sheet 3: Stakeholders
+                    stakeholders = db.get_stakeholders(project_id)
+                    if not stakeholders.empty:
+                        stakeholders.to_excel(writer, sheet_name='Stakeholders', index=False)
+                    
+                    # Sheet 4: Kế hoạch
+                    tasks = db.get_tasks(project_id)
+                    if not tasks.empty:
+                        tasks.to_excel(writer, sheet_name='Kế hoạch', index=False)
+                    
+                    # Sheet 5: Ký tên
+                    signoffs = db.get_signoffs(project_id)
+                    if not signoffs.empty:
+                        signoffs.to_excel(writer, sheet_name='Ký tên', index=False)
+                
+                excel_bytes = output.getvalue()
+                
+                st.download_button(
+                    label="⬇️ Tải xuống Excel",
+                    data=excel_bytes,
+                    file_name=f"Project_{project['project_code']}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+                
+                st.success("✅ Đã tạo file Excel!")
+                
+            except Exception as e:
+                st.error(f"❌ Lỗi: {str(e)}")
+    
+    # Xuất CSV
+    with col3:
+        if st.button("📋 Xuất CSV", type="primary"):
+            try:
+                tasks = db.get_tasks(project_id)
+                
+                if not tasks.empty:
+                    csv = tasks.to_csv(index=False)
+                    
+                    st.download_button(
+                        label="⬇️ Tải xuống CSV",
+                        data=csv,
+                        file_name=f"Tasks_{project['project_code']}.csv",
+                        mime="text/csv"
+                    )
+                    
+                    st.success("✅ Đã tạo file CSV!")
+                else:
+                    st.warning("Không có dữ liệu để xuất")
+                    
+            except Exception as e:
+                st.error(f"❌ Lỗi: {str(e)}")
 
+# ==================== DASHBOARD ====================
+def render_dashboard():
+    st.header("📊 Dashboard & Thống kê")
+    
+    stats = db.get_statistics()
+    projects = db.get_all_projects()
+    
+    if stats['total_projects'] == 0:
+        st.warning("Chưa có dữ liệu để hiển thị dashboard.")
+        return
+    
+    # Metrics cards
+    metrics = create_metrics_cards(stats)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("📁 Tổng số dự án", metrics['total_projects'])
+    
+    with col2:
+        st.metric("💰 Tổng ngân sách", f"{metrics['total_budget']:,.0f} VNĐ")
+    
+    with col3:
+        st.metric("💸 Chi phí thực tế", f"{metrics['total_cost']:,.0f} VNĐ")
+    
+    with col4:
+        st.metric("📊 Tỷ lệ SD ngân sách", f"{metrics['budget_utilization']}%")
+    
+    st.markdown("---")
+    
+    # Chọn loại biểu đồ
+    chart_options = st.multiselect(
+        "Chọn biểu đồ hiển thị:",
+        ["Trạng thái", "Danh mục", "Phòng/Ban", "Ngân sách", "Heatmap", "Timeline"],
+        default=["Trạng thái", "Danh mục"]
+    )
+    
+    # Hiển thị biểu đồ
+    chart_cols = st.columns(2)
+    
+    chart_idx = 0
+    for chart_type in chart_options:
+        with chart_cols[chart_idx % 2]:
+            if chart_type == "Trạng thái":
+                fig = create_status_chart(stats, 'pie')
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            elif chart_type == "Danh mục":
+                fig = create_category_chart(stats, 'bar')
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            elif chart_type == "Phòng/Ban":
+                fig = create_department_chart(stats, 'bar')
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            elif chart_type == "Ngân sách":
+                fig = create_budget_chart(stats)
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            elif chart_type == "Heatmap":
+                if not projects.empty:
+                    fig = create_heatmap(projects)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+        
+        chart_idx += 1
+    
+    # Overview dashboard
+    st.markdown("---")
+    st.subheader("Dashboard Tổng quan")
+    
+    overview_fig = create_overview_dashboard(stats)
+    if overview_fig:
+        st.plotly_chart(overview_fig, use_container_width=True)
 
-# ==================== END OF SNIPPETS ====================
-"""
-Hướng dẫn sử dụng:
+# ==================== QUẢN LÝ PHÒNG BAN ====================
+def render_departments():
+    st.header("🏢 Quản lý Phòng/Ban")
+    
+    departments = db.get_departments()
+    
+    # Hiển thị danh sách
+    if not departments.empty:
+        st.subheader("Danh sách Phòng/Ban")
+        
+        for _, dept in departments.iterrows():
+            col1, col2, col3 = st.columns([3, 5, 1])
+            
+            with col1:
+                st.write(f"**{dept['name']}**")
+            
+            with col2:
+                st.write(dept.get('description', ''))
+            
+            with col3:
+                if st.button("🗑️", key=f"del_dept_{dept['id']}"):
+                    db.delete_department(dept['id'])
+                    st.success("✅ Đã xóa!")
+                    st.rerun()
+    else:
+        st.info("Chưa có phòng/ban nào.")
+    
+    # Form thêm phòng ban
+    st.markdown("---")
+    st.subheader("➕ Thêm Phòng/Ban mới")
+    
+    with st.form("add_department"):
+        name = st.text_input("Tên Phòng/Ban *", placeholder="VD: Khoa Nội, Phòng Kế hoạch...")
+        description = st.text_area("Mô tả", placeholder="Mô tả ngắn gọn về phòng/ban")
+        
+        submitted = st.form_submit_button("💾 Thêm", type="primary")
+        
+        if submitted:
+            if not name:
+                st.error("⚠️ Vui lòng nhập tên phòng/ban!")
+            else:
+                success = db.add_department(name, description)
+                if success:
+                    st.success("✅ Đã thêm phòng/ban!")
+                    st.rerun()
+                else:
+                    st.error("❌ Phòng/ban đã tồn tại!")
 
-1. Copy SNIPPET 1 → Paste vào app.py
-2. Copy SNIPPET 2 → Add vào project_data
-3. Copy SNIPPET 3 → Paste vào render_project_info()
-4. Copy SNIPPET 4 → Add vào updated_data
-5. Save, commit, push!
+# ==================== IMPORT/EXPORT ====================
+def render_import_export():
+    st.header("📤 Import/Export Dữ liệu")
+    
+    tab1, tab2 = st.tabs(["📥 Import", "📤 Export"])
+    
+    with tab1:
+        st.subheader("Import dữ liệu từ Excel/CSV")
+        
+        uploaded_file = st.file_uploader(
+            "Chọn file Excel hoặc CSV",
+            type=['xlsx', 'xls', 'csv']
+        )
+        
+        if uploaded_file:
+            try:
+                if uploaded_file.name.endswith('.csv'):
+                    df = pd.read_csv(uploaded_file)
+                else:
+                    df = pd.read_excel(uploaded_file)
+                
+                st.write("Xem trước dữ liệu:")
+                st.dataframe(df.head(), use_container_width=True)
+                
+                if st.button("✅ Import dữ liệu", type="primary"):
+                    # TODO: Implement import logic
+                    st.success("Chức năng đang phát triển!")
+                    
+            except Exception as e:
+                st.error(f"❌ Lỗi đọc file: {str(e)}")
+    
+    with tab2:
+        st.subheader("Export toàn bộ dữ liệu")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📊 Export tất cả dự án (Excel)", type="primary"):
+                try:
+                    projects = db.get_all_projects()
+                    
+                    if not projects.empty:
+                        output = io.BytesIO()
+                        projects.to_excel(output, index=False, engine='xlsxwriter')
+                        excel_bytes = output.getvalue()
+                        
+                        st.download_button(
+                            label="⬇️ Tải xuống",
+                            data=excel_bytes,
+                            file_name=f"All_Projects_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+                        
+                        st.success("✅ Đã tạo file!")
+                    else:
+                        st.warning("Không có dữ liệu để export")
+                        
+                except Exception as e:
+                    st.error(f"❌ Lỗi: {str(e)}")
+        
+        with col2:
+            if st.button("📋 Export tất cả dự án (CSV)", type="primary"):
+                try:
+                    projects = db.get_all_projects()
+                    
+                    if not projects.empty:
+                        csv = projects.to_csv(index=False)
+                        
+                        st.download_button(
+                            label="⬇️ Tải xuống",
+                            data=csv,
+                            file_name=f"All_Projects_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv"
+                        )
+                        
+                        st.success("✅ Đã tạo file!")
+                    else:
+                        st.warning("Không có dữ liệu để export")
+                        
+                except Exception as e:
+                    st.error(f"❌ Lỗi: {str(e)}")
 
-Đơn giản vậy thôi! 💪
-"""
+# ==================== HƯỚNG DẪN SỬ DỤNG ====================
+def render_user_guide():
+    st.header("❓ Hướng dẫn Sử dụng")
+    
+    st.markdown("""
+    ## 📖 Hướng dẫn Sử dụng Hệ thống Quản lý Dự án Lean Six Sigma
+    
+    ### 1. 🏠 Trang chủ
+    - Xem tổng quan thống kê các dự án
+    - Hiển thị danh sách dự án gần đây
+    
+    ### 2. ➕ Thêm dự án mới
+    - Nhập đầy đủ thông tin dự án theo form
+    - **Chọn phương pháp cải tiến:** DMAIC, PDCA, hoặc PDSA
+    - Các trường có dấu (*) là bắt buộc
+    - Chọn danh mục theo 5 nhóm mục đích Lean Six Sigma
+    
+    ### 3. 📝 Quản lý dự án
+    
+    #### 📄 Thông tin dự án
+    - Chỉnh sửa thông tin cơ bản
+    - Cập nhật phương pháp cải tiến
+    - Cập nhật ngân sách và chi phí thực tế
+    - Xóa dự án (cần xác nhận 2 lần)
+    
+    #### 👥 Thành viên
+    - Thêm/xóa thành viên trong nhóm dự án
+    - Ghi rõ vai trò và thông tin liên hệ
+    
+    #### 🤝 Stakeholders
+    - Quản lý các bên liên quan
+    - Đánh giá mức độ ảnh hưởng và tham gia
+    
+    #### 📅 Kế hoạch (Gantt)
+    - Tạo kế hoạch chi tiết theo phases
+    - Theo dõi tiến độ từng công việc
+    - Xem biểu đồ Gantt trực quan
+    - Cảnh báo công việc quá hạn
+    
+    #### 🔄 Methodology Tracking **← CẬP NHẬT!**
+    
+    **DMAIC Projects (5 phases):**
+    - **DEFINE:** SIPOC Diagram, Project Charter, Voice of Customer
+    - **MEASURE:** Data Collection, Baseline Metrics, Process Mapping
+    - **ANALYZE:** Fishbone, 5 Whys, Pareto Chart, Statistical Analysis
+    - **IMPROVE:** Solution Brainstorming, Pilot Testing, Before/After Comparison
+    - **CONTROL:** Control Plans, SOPs, Sustainability Planning
+    
+    **PDCA Projects (4 phases):**
+    - **PLAN:** Problem Definition, Current Situation, Action Planning, KPIs
+    - **DO:** Implementation, Testing, Data Collection, Documentation
+    - **CHECK:** Results Analysis, KPI Review, Gap Analysis, Lessons Learned
+    - **ACT:** Standardization, Continuous Improvement, Documentation, Training
+    
+    **PDSA Projects (4 phases):**
+    - **PLAN:** Hypothesis, Prediction, Data Collection Plan, Test Design
+    - **DO:** Small-scale Testing, Observation, Data Recording
+    - **STUDY:** Data Analysis, Learning, Comparison with Prediction
+    - **ACT:** Adopt/Adapt/Abandon, Scale-up, Next Cycle Planning
+    
+    #### 💬 Cộng tác
+    - Team comments và discussions
+    - Activity tracking
+    - Meeting minutes
+    - @mentions cho team members
+    
+    #### ✍️ Ký tên
+    - Thêm thông tin người ký duyệt
+    - Theo dõi trạng thái phê duyệt
+    
+    #### 📤 Xuất báo cáo
+    - Xuất PDF: Báo cáo đầy đủ định dạng chuyên nghiệp
+    - Xuất Excel: Dữ liệu chi tiết nhiều sheets
+    - Xuất CSV: Dữ liệu kế hoạch để phân tích
+    
+    ### 4. 📊 Dashboard & Thống kê
+    - Xem biểu đồ tổng quan
+    - Chọn loại biểu đồ phù hợp (Pie, Bar, Heatmap...)
+    - Phân tích theo nhiều tiêu chí
+    
+    ### 5. 🏢 Quản lý Phòng/Ban
+    - Thêm danh sách các phòng/ban/khoa
+    - Sử dụng cho dropdown trong các form khác
+    
+    ### 6. 📤 Import/Export
+    - Import dữ liệu từ Excel/CSV (đang phát triển)
+    - Export toàn bộ dữ liệu dự án
+    
+    ---
+    
+    ## 💡 Mẹo sử dụng
+    
+    1. **Tạo Phòng/Ban trước**: Nên tạo danh sách phòng/ban trước khi thêm dự án
+    2. **Chọn Methodology**: Chọn đúng phương pháp (DMAIC/PDCA/PDSA) khi tạo dự án
+    3. **Methodology Tracking**: Sử dụng tab tracking phù hợp với phương pháp đã chọn
+    4. **Cập nhật tiến độ**: Thường xuyên cập nhật tiến độ để theo dõi dự án hiệu quả
+    5. **Sao lưu dữ liệu**: Export dữ liệu định kỳ để backup
+    
+    ---
+    
+    ## 🆘 Hỗ trợ
+    
+    Nếu gặp vấn đề hoặc có câu hỏi, vui lòng liên hệ:
+    - Email: support@hospital.com
+    - Hotline: 0123-456-789
+    """)
+
+# ==================== MAIN APP ====================
+def main():
+    # Render sidebar và lấy menu đã chọn
+    selected_menu = render_sidebar()
+    
+    # Initialize collaboration features
+    if 'collaboration_initialized' not in st.session_state:
+        collaboration_components = initialize_collaboration(db, enable_scheduler=False)
+        st.session_state['collaboration_initialized'] = True
+        st.session_state['collaboration_components'] = collaboration_components
+    
+    # Render nội dung theo menu
+    if selected_menu == "🏠 Trang chủ":
+        render_home()
+    
+    elif selected_menu == "➕ Thêm dự án mới":
+        render_add_project()
+    
+    elif selected_menu == "📝 Quản lý dự án":
+        render_manage_projects()
+    
+    elif selected_menu == "📊 Dashboard & Thống kê":
+        render_dashboard()
+    
+    elif selected_menu == "🏢 Quản lý Phòng/Ban":
+        render_departments()
+    
+    elif selected_menu == "📤 Import/Export":
+        render_import_export()
+    
+    elif selected_menu == "❓ Hướng dẫn sử dụng":
+        render_user_guide()
+
+if __name__ == "__main__":
+    main()
